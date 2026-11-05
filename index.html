@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Energie">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#f9f9f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0d0d" media="(prefers-color-scheme: dark)">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="icon" href="icon.png">
+<title>Energie thuis</title>
+<!--
+  Telefoonpagina van project Energie Claude (Predrag Sajinovic).
+  Leest 4_Uitvoer/mobiel_data.json uit de eigen OneDrive via Microsoft Graph (alleen lezen, Files.Read).
+  Deze pagina bevat zelf GEEN energiedata en GEEN geheimen: het Client-ID van een app-registratie is openbaar.
+  Bron: 2_Scripts\mobiel\index.html. Zie ReadMe.txt en HANDLEIDING_Azure_GitHub.txt in die map.
+-->
+<style>
+:root{color-scheme:light;
+  --page:#f9f9f7;--surface:#fcfcfb;--ink:#0b0b0b;--ink2:#52514e;--muted:#898781;--grid:#e1e0d9;--axis:#c3c2b7;--ring:rgba(11,11,11,.10);
+  --blue:#2a78d6;--orange:#eb6834;--aqua:#1baf7a;--yellow:#eda100;--violet:#6250d6;--gray:#b4b2a9;
+  --goodtxt:#006300;--crittxt:#a32d2d;--warnbg:#fdf3dc;--critbg:#fcebeb;}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;
+  --page:#0d0d0d;--surface:#1a1a19;--ink:#f0efec;--ink2:#c3c2b7;--muted:#898781;--grid:#2c2c2a;--axis:#383835;--ring:rgba(255,255,255,.10);
+  --blue:#3987e5;--orange:#d95926;--aqua:#199e70;--yellow:#c98500;--violet:#9085e9;--gray:#5f5e5a;
+  --goodtxt:#0ca30c;--crittxt:#e66767;--warnbg:#3a2c0a;--critbg:#3b1616;}}
+:root[data-theme="dark"]{color-scheme:dark;
+  --page:#0d0d0d;--surface:#1a1a19;--ink:#f0efec;--ink2:#c3c2b7;--muted:#898781;--grid:#2c2c2a;--axis:#383835;--ring:rgba(255,255,255,.10);
+  --blue:#3987e5;--orange:#d95926;--aqua:#199e70;--yellow:#c98500;--violet:#9085e9;--gray:#5f5e5a;
+  --goodtxt:#0ca30c;--crittxt:#e66767;--warnbg:#3a2c0a;--critbg:#3b1616;}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--page);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:760px;margin:0 auto;padding:calc(12px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right)) calc(24px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left))}
+h1{font-size:22px;margin:0;line-height:1.2}
+h2{font-size:17px;margin:0 0 2px}
+h3{font-size:13px;font-weight:600;margin:14px 0 4px;color:var(--ink2)}
+.sub{color:var(--ink2);font-size:13px}
+.muted{color:var(--muted);font-size:12px}
+.kop{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin:4px 0 14px}
+.knoppen{display:flex;gap:8px;flex-shrink:0}
+button{font:inherit;font-size:14px;color:var(--ink);background:var(--surface);border:1px solid var(--ring);border-radius:10px;padding:7px 12px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+button.hoofd{background:var(--ink);color:var(--page);border-color:var(--ink);font-weight:600;padding:12px 20px;font-size:16px}
+button:disabled{opacity:.5}
+.card{background:var(--surface);border:1px solid var(--ring);border-radius:14px;padding:14px;margin-bottom:14px;min-width:0}
+.banner{border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:13px}
+.banner.warn{background:var(--warnbg)}.banner.crit{background:var(--critbg)}
+.grafiek{position:relative;height:220px;margin-top:6px}.grafiek.laag{height:160px}
+.legenda{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--ink2);margin-top:6px}
+.legenda i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+.legenda i.lijn{height:2px;width:14px;border-radius:0;vertical-align:3px}
+.legenda i.stip{height:0;width:14px;border-top:2px dashed;background:none!important;vertical-align:3px}
+.dagen{list-style:none;margin:6px 0 0;padding:0;font-size:13px;color:var(--ink2);font-variant-numeric:tabular-nums}
+.dagen li{padding:3px 0;border-bottom:1px solid var(--grid)}.dagen li:last-child{border-bottom:0}
+.dagen b{color:var(--ink);font-weight:600;display:inline-block;min-width:68px}
+.midden{text-align:center;padding:48px 8px}
+.midden p{color:var(--ink2);margin:0 0 20px}
+</style>
+</head>
+<body>
+<main id="app"><div class="midden"><p>Laden…</p></div></main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+"use strict";
+// ================================================================== instellingen
+const CLIENT_ID = "6586dbdb-2426-484e-b3b3-8304c079b511";        // Azure app-registratie (Application (client) ID), zie handleiding
+const PAD = "AI Projects/Energie Claude/4_Uitvoer/mobiel_data.json";   // t.o.v. de hoofdmap van OneDrive
+const OUD_MIN = 45;                                    // data ouder dan dit -> gele balk
+const VERVERS_MIN = 5;                                 // opnieuw ophalen zolang de pagina open is
+const AUTH = "https://login.microsoftonline.com/consumers/oauth2/v2.0";
+const SCOPE = "Files.Read offline_access";
+const REDIRECT = location.origin + location.pathname;
+
+// ================================================================== hulpjes
+const $ = s => document.querySelector(s);
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const nf = (x, d = 1) => x == null || isNaN(x) ? "–" : x.toLocaleString("nl-NL", {minimumFractionDigits: d, maximumFractionDigits: d});
+const tijd = s => s ? new Date(s).toLocaleString("nl-NL", {weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit"}) : "–";
+const kloktijd = s => s ? new Date(s).toLocaleTimeString("nl-NL", {hour: "2-digit", minute: "2-digit"}) : "–";
+const dagnaam = s => new Date(s + "T12:00").toLocaleDateString("nl-NL", {weekday: "short", day: "2-digit", month: "2-digit"});
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+const BANDKLEUR = {laag: "--aqua", regulier: "--gray", hoog: "--orange", negatief: "--blue"};
+const opslag = {
+  get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
+  del(k) { try { localStorage.removeItem(k); } catch (e) {} }
+};
+
+// ================================================================== inloggen (OAuth 2.0 code + PKCE, zonder bibliotheek)
+const b64url = buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+const willekeurig = n => b64url(crypto.getRandomValues(new Uint8Array(n)));
+
+async function inloggen() {
+  const verifier = willekeurig(48), state = willekeurig(16);
+  const challenge = b64url(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier)));
+  opslag.set("pkce", JSON.stringify({verifier, state}));
+  const q = new URLSearchParams({client_id: CLIENT_ID, response_type: "code", redirect_uri: REDIRECT, scope: SCOPE,
+    code_challenge: challenge, code_challenge_method: "S256", state, response_mode: "query"});
+  const hint = opslag.get("login_hint"); if (hint) q.set("login_hint", hint);
+  location.assign(`${AUTH}/authorize?${q}`);
+}
+
+async function tokenAanvraag(velden) {
+  const r = await fetch(`${AUTH}/token`, {method: "POST", headers: {"Content-Type": "application/x-www-form-urlencoded"},
+    body: new URLSearchParams(Object.assign({client_id: CLIENT_ID, scope: SCOPE}, velden))});
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok || !j.access_token) throw new Error(j.error_description || j.error || `token ${r.status}`);
+  opslag.set("tok", JSON.stringify({at: j.access_token, rt: j.refresh_token, exp: Date.now() + (j.expires_in - 120) * 1000}));
+  return j.access_token;
+}
+
+async function terugVanInloggen() {          // ?code=... na de Microsoft-inlogpagina
+  const q = new URLSearchParams(location.search);
+  if (!q.has("code") && !q.has("error")) return;
+  history.replaceState(null, "", REDIRECT);
+  if (q.has("error")) throw new Error(q.get("error_description") || q.get("error"));
+  const p = JSON.parse(opslag.get("pkce") || "{}"); opslag.del("pkce");
+  if (!p.state || p.state !== q.get("state")) throw new Error("Inloggen niet herkend (state); probeer opnieuw.");
+  await tokenAanvraag({grant_type: "authorization_code", code: q.get("code"), redirect_uri: REDIRECT, code_verifier: p.verifier});
+}
+
+async function accessToken() {
+  const t = JSON.parse(opslag.get("tok") || "null");
+  if (!t) return null;
+  if (t.at && Date.now() < t.exp) return t.at;
+  if (!t.rt) return null;
+  try { return await tokenAanvraag({grant_type: "refresh_token", refresh_token: t.rt}); }
+  catch (e) { opslag.del("tok"); return null; }      // verlopen (na ~24 uur): opnieuw inloggen
+}
+
+function uitloggen() { opslag.del("tok"); opslag.del("data"); location.replace(REDIRECT); }
+
+// ================================================================== data ophalen uit OneDrive
+async function haalData(token) {
+  const pad = PAD.split("/").map(encodeURIComponent).join("/");
+  const r = await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${pad}`, {headers: {Authorization: "Bearer " + token}});
+  if (r.status === 401) { opslag.del("tok"); throw Object.assign(new Error("Inloggen verlopen"), {inlog: true}); }
+  if (r.status === 404) throw new Error("mobiel_data.json niet gevonden in OneDrive (" + PAD + ").");
+  if (!r.ok) throw new Error("OneDrive gaf fout " + r.status);
+  const item = await r.json();
+  const url = item["@microsoft.graph.downloadUrl"];
+  const r2 = url ? await fetch(url) : await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${item.id}/content`, {headers: {Authorization: "Bearer " + token}});
+  if (!r2.ok) throw new Error("Downloaden mislukt (" + r2.status + ")");
+  const M = await r2.json();
+  M._onedrive = item.lastModifiedDateTime;
+  M._opgehaald = new Date().toISOString();
+  opslag.set("data", JSON.stringify(M));
+  return M;
+}
+
+// ================================================================== schermen
+function scherm(html) { if (window.Chart) Object.values(Chart.instances || {}).forEach(c => c.destroy()); $("#app").innerHTML = html; }
+
+function inlogScherm(melding, knop = true) {
+  scherm(`<div class="kop"><h1>Energie thuis</h1></div>
+    ${melding ? `<div class="banner crit">${esc(melding)}</div>` : ""}
+    ${knop ? `<div class="midden"><p>Log in met je Microsoft-account om de gegevens uit OneDrive te lezen.</p>
+    <button class="hoofd" id="bInlog">Inloggen</button></div>` : ""}`);
+  if (knop) $("#bInlog").onclick = inloggen;
+}
+
+function leg(items) {
+  return `<div class="legenda">${items.map(([naam, kl, soort]) =>
+    `<span><i class="${soort || ""}" style="background:var(${kl});border-color:var(${kl})"></i>${naam}</span>`).join("")}</div>`;
+}
+
+function toon(M, opmerking) {
+  const k = M.kop, v = M.vandaag, z = M.zon, p = M.prijzen;
+  const leeftijd = (Date.now() - new Date(k.gemaakt)) / 60000;
+  let h = `<div class="kop"><div><h1>Energie thuis</h1>
+      <div class="sub">bijgewerkt ${tijd(k.gemaakt)}</div>
+      <div class="muted">opgehaald ${kloktijd(M._opgehaald)}</div></div>
+    <div class="knoppen"><button id="bVervers" aria-label="Verversen">↻</button><button id="bUit">Afmelden</button></div></div>`;
+  if (opmerking) h += `<div class="banner warn">${esc(opmerking)}</div>`;
+  if (leeftijd > OUD_MIN) h += `<div class="banner warn"><b>Gegevens zijn ${leeftijd < 120 ? Math.round(leeftijd) + " minuten" : nf(leeftijd / 60, 0) + " uur"} oud.</b>
+    Staat de pc aan en loopt de taak 'Dashboard elk kwartier'? Synchroniseert OneDrive?</div>`;
+  if (k.fouten && k.fouten.length) h += `<div class="banner crit"><b>Fout bij ophalen:</b> ${esc(k.fouten.join(", "))} (zie dashboard op de pc)</div>`;
+
+  // 2 · Vandaag
+  h += `<section class="card"><h2>Vandaag</h2>
+    <div class="sub">werkelijk (staven) tegenover verwacht (lijnen)</div>
+    <h3>Verbruik en zon per uur (kWh)</h3><div class="grafiek"><canvas id="cVandaag"></canvas></div>
+    ${leg([["verbruik", "--blue"], ["zon", "--yellow"], ["verbruik verwacht", "--blue", "stip"], ["zon verwacht", "--yellow", "stip"]])}
+    <h3>Laadtoestand (%)</h3><div class="grafiek laag"><canvas id="cSoc"></canvas></div>
+    ${leg([["gemeten", "--violet", "lijn"], ["plan", "--violet", "stip"]])}
+    <div class="muted" style="margin-top:6px">verwachting ${esc(v.verw_bron || "–")} ${tijd(v.verw_t)} · plan ${tijd(v.plan_opgesteld)}</div></section>`;
+
+  // 3 · Zon
+  h += `<section class="card"><h2>Zon gisteren, vandaag, morgen</h2>
+    <ul class="dagen">${z.dagen.map(d => `<li><b>${dagnaam(d.dag)}</b> verwacht ${nf(d.verw, 1)} kWh${d.werk != null ? ` · gemeten ${nf(d.werk, 1)} kWh` : ""}</li>`).join("")}</ul>
+    <div class="grafiek"><canvas id="cZon"></canvas></div>
+    ${leg([["verwacht oost", "--orange"], ["verwacht west", "--yellow"], ["gemeten", "--blue", "lijn"]])}</section>`;
+
+  // 7 · Prijzen
+  h += `<section class="card"><h2>Prijzen</h2>
+    <ul class="dagen">${p.dagen.map(d => d.bekend
+      ? `<li><b>${dagnaam(d.dag)}</b> ${nf(d.min, 1)} – ${nf(d.max, 1)} ct · gem. ${nf(d.gem, 1)} ct<br><span class="muted">inkoop effectief gem. ${nf(d.inkoop_gem, 1)} ct</span></li>`
+      : `<li><b>${dagnaam(d.dag)}</b> nog niet bekend</li>`).join("")}</ul>
+    <h3>Vandaag en morgen per kwartier (EPEX, ct/kWh)</h3><div class="grafiek"><canvas id="cPrijs2"></canvas></div>
+    ${leg([["laag", "--aqua"], ["regulier", "--gray"], ["hoog", "--orange"], ["negatief", "--blue"]])}
+    <h3>Verwachting 7 dagen (jeroen.nl, ${tijd(p.jeroen.t)})</h3><div class="grafiek"><canvas id="cJeroen"></canvas></div>
+    ${leg([["bekend", "--violet", "lijn"], ["verwachting p50", "--blue", "lijn"], ["band p10–p90", "--blue"]])}
+    <div class="muted" style="margin-top:6px">Bron prijsverwachting: jeroen.nl, persoonlijk gebruik.</div></section>`;
+
+  scherm(h);
+  $("#bVervers").onclick = () => start(true);
+  $("#bUit").onclick = uitloggen;
+  if (window.Chart) grafieken(M);
+  else document.querySelectorAll(".grafiek").forEach(g => g.innerHTML = '<p class="muted">Grafiek niet beschikbaar (Chart.js niet geladen).</p>');
+}
+
+// ================================================================== grafieken (zelfde stijl als Dashboard.html)
+function basis(extra = {}) {
+  Chart.defaults.font.family = 'system-ui,-apple-system,"Segoe UI",sans-serif';
+  Chart.defaults.font.size = 11; Chart.defaults.color = css("--muted");
+  return {responsive: true, maintainAspectRatio: false, animation: false,
+    interaction: {mode: "index", intersect: false},
+    plugins: {legend: {display: false}, tooltip: {backgroundColor: css("--surface"), titleColor: css("--ink"), bodyColor: css("--ink2"),
+      borderColor: css("--ring"), borderWidth: 1, padding: 8,
+      callbacks: {label: c => c.parsed.y == null ? null : ` ${c.dataset.label}: ${nf(c.parsed.y, extra.dec ?? 2)}${extra.eenheid ?? ""}`}}},
+    scales: {x: {grid: {display: false}, border: {color: css("--axis")}, ticks: {maxRotation: 0, autoSkipPadding: 10}},
+             y: {grid: {color: css("--grid")}, border: {display: false}, beginAtZero: true, ticks: {callback: x => nf(x, extra.ydec ?? 1)}}}};
+}
+const nuLijn = idx => ({id: "nu", afterDatasetsDraw(c) {
+  if (idx == null || idx < 0) return; const x = c.scales.x.getPixelForValue(idx), a = c.chartArea, g = c.ctx;
+  g.save(); g.strokeStyle = css("--ink2"); g.setLineDash([3, 3]); g.lineWidth = 1; g.beginPath(); g.moveTo(x, a.top); g.lineTo(x, a.bottom); g.stroke();
+  g.fillStyle = css("--ink2"); g.font = "11px system-ui"; g.fillText("nu", x + 4, a.top + 10); g.restore(); }});
+const staaf = (label, data, kl, extra = {}) => Object.assign({type: "bar", label, data, backgroundColor: css(kl), borderRadius: 3,
+  borderSkipped: "start", maxBarThickness: 14, categoryPercentage: .85, barPercentage: .9}, extra);
+const lijn = (label, data, kl, extra = {}) => Object.assign({type: "line", label, data, borderColor: css(kl), backgroundColor: css(kl),
+  borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, tension: .25, spanGaps: false}, extra);
+
+function grafieken(M) {
+  const v = M.vandaag, uNu = v.uren.indexOf(v.nu.slice(0, 2) + ":00");
+  const ov = basis({eenheid: " kWh"}); ov.scales.x.ticks.maxTicksLimit = 8;
+  new Chart($("#cVandaag"), {data: {labels: v.uren, datasets: [
+      staaf("verbruik", v.verbr_werk, "--blue"), staaf("zon", v.zon_werk, "--yellow"),
+      lijn("verbruik verwacht", v.verbr_verw, "--blue", {borderDash: [5, 4]}), lijn("zon verwacht", v.zon_verw, "--yellow", {borderDash: [5, 4]})]},
+    options: ov, plugins: [nuLijn(uNu)]});
+  const kNu = v.kw.indexOf(v.nu);
+  const os = basis({eenheid: "%", dec: 0, ydec: 0}); os.scales.y.max = 100; os.scales.x.ticks.maxTicksLimit = 8;
+  new Chart($("#cSoc"), {data: {labels: v.kw, datasets: [lijn("gemeten", v.soc_werk, "--violet"),
+      lijn("plan", v.soc_plan, "--violet", {borderDash: [5, 4]})]}, options: os, plugins: [nuLijn(kNu)]});
+
+  const z = M.zon, zi = z.labels.indexOf(z.dagen[1].dag + " " + v.nu.slice(0, 2) + ":00");
+  const oz = basis({eenheid: " kWh"}); oz.scales.x.stacked = true; oz.scales.y.stacked = true; oz.scales.x.ticks.autoSkip = false;
+  oz.scales.x.ticks.callback = function (i) { const l = this.getLabelForValue(i); return l.endsWith("12:00") ? dagnaam(l.slice(0, 10)) : null; };
+  oz.plugins.tooltip.callbacks.title = it => dagnaam(it[0].label.slice(0, 10)) + " " + it[0].label.slice(11);
+  new Chart($("#cZon"), {data: {labels: z.labels, datasets: [
+      staaf("verwacht oost", z.oost, "--orange", {stack: "v", borderRadius: 0, borderSkipped: false, maxBarThickness: 8, categoryPercentage: 1, barPercentage: .85}),
+      staaf("verwacht west", z.west, "--yellow", {stack: "v", maxBarThickness: 8, categoryPercentage: 1, barPercentage: .85}),
+      lijn("gemeten", z.werk, "--blue", {stack: "w", tension: .2})]}, options: oz, plugins: [nuLijn(zi)]});
+
+  const p = M.prijzen, lab = [], pr = [], bd = [];
+  p.dagen.forEach(d => { if (d.bekend) d.kw.forEach((k, i) => { lab.push(dagnaam(d.dag).slice(0, 2) + " " + k); pr.push(d.prijs[i]); bd.push(d.band[i]); }); });
+  const op = basis({eenheid: " ct", dec: 1}); op.scales.x.ticks.maxTicksLimit = 6;
+  new Chart($("#cPrijs2"), {data: {labels: lab, datasets: [staaf("EPEX", pr, "--gray",
+      {backgroundColor: bd.map(b => css(BANDKLEUR[b] || "--gray")), maxBarThickness: 4, borderRadius: 1, categoryPercentage: 1, barPercentage: 1})]},
+    options: op, plugins: [nuLijn(lab.indexOf(dagnaam(p.dagen[0].dag).slice(0, 2) + " " + v.nu))]});
+
+  const j = p.jeroen, band = css("--blue") + "33";
+  const oj = basis({eenheid: " ct", dec: 1}); oj.scales.y.beginAtZero = false; oj.scales.x.ticks.maxTicksLimit = 5;
+  oj.scales.x.ticks.callback = function (i) { return this.getLabelForValue(i).slice(0, 6); };
+  new Chart($("#cJeroen"), {data: {labels: j.labels, datasets: [
+      lijn("p10", j.p10, "--blue", {borderWidth: 0, tension: 0}),
+      lijn("p90", j.p90, "--blue", {borderWidth: 0, backgroundColor: band, fill: "-1", tension: 0}),
+      lijn("verwachting p50", j.p50, "--blue", {tension: 0}), lijn("bekend", j.bekend, "--violet", {tension: 0})]},
+    options: oj});
+}
+
+// ================================================================== hoofdlijn
+let bezig = false, laatsteStart = 0;
+async function start(handmatig) {
+  if (bezig) return; bezig = true; laatsteStart = Date.now();
+  const knop = $("#bVervers"); if (knop) knop.disabled = true;
+  const bewaard = JSON.parse(opslag.get("data") || "null");
+  try {
+    if (window.__TESTDATA) { toon(Object.assign({_opgehaald: new Date().toISOString()}, window.__TESTDATA)); return; }
+    if (CLIENT_ID.startsWith("VUL-")) { inlogScherm("Nog niet ingesteld: vul het Client-ID in (zie handleiding).", false); return; }
+    await terugVanInloggen();
+    const token = await accessToken();
+    if (!token) { inlogScherm(bewaard ? "Inloggen verlopen; tik op Inloggen (meestal één tik)." : ""); return; }
+    toon(await haalData(token));
+  } catch (e) {
+    if (e.inlog) inlogScherm("Inloggen verlopen; tik op Inloggen.");
+    else if (bewaard) toon(bewaard, "Ophalen mislukt (" + e.message + "). Je ziet de laatst opgehaalde gegevens.");
+    else inlogScherm(e.message);
+  } finally { bezig = false; const k = $("#bVervers"); if (k) k.disabled = false; }
+}
+
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && Date.now() - laatsteStart > 60000) start();
+});
+setInterval(() => { if (document.visibilityState === "visible") start(); }, VERVERS_MIN * 60000);
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { const b = JSON.parse(opslag.get("data") || "null"); if (b) toon(b); });
+start();
+</script>
+</body>
+</html>
