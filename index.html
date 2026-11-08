@@ -16,60 +16,123 @@
 <title>Energie thuis</title>
 <!--
   Telefoonpagina van project Energie Claude (Predrag Sajinovic).
-  Leest 4_Uitvoer/mobiel_data.json uit de eigen OneDrive via Microsoft Graph (alleen lezen, Files.Read).
+  Leest 4_Uitvoer/mobiel_v2.json uit de eigen OneDrive via Microsoft Graph (alleen lezen, Files.Read).
   Deze pagina bevat zelf GEEN energiedata en GEEN geheimen: het Client-ID van een app-registratie is openbaar.
+  Versie 2 (8-11-2026): tabbladen Dagen / Maand / Jaar, grafieken als SVG zonder externe bibliotheek.
   Bron: 2_Scripts\mobiel\index.html. Zie ReadMe.txt en HANDLEIDING_Azure_GitHub.txt in die map.
 -->
 <style>
 :root{color-scheme:light;
   --page:#f9f9f7;--surface:#fcfcfb;--ink:#0b0b0b;--ink2:#52514e;--muted:#898781;--grid:#e1e0d9;--axis:#c3c2b7;--ring:rgba(11,11,11,.10);
-  --blue:#2a78d6;--orange:#eb6834;--aqua:#1baf7a;--yellow:#eda100;--violet:#6250d6;--gray:#b4b2a9;
-  --goodtxt:#006300;--crittxt:#a32d2d;--warnbg:#fdf3dc;--critbg:#fcebeb;}
+  --s25:#a3a199;--s26:#2a78d6;--verw:#eb6834;--zon:#eda100;--kw:#6250d6;--bat:#1baf7a;--hover:rgba(11,11,11,.04);
+  --goodtxt:#006300;--crittxt:#a32d2d;--critbg:#fcebeb;}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;
   --page:#0d0d0d;--surface:#1a1a19;--ink:#f0efec;--ink2:#c3c2b7;--muted:#898781;--grid:#2c2c2a;--axis:#383835;--ring:rgba(255,255,255,.10);
-  --blue:#3987e5;--orange:#d95926;--aqua:#199e70;--yellow:#c98500;--violet:#9085e9;--gray:#5f5e5a;
-  --goodtxt:#0ca30c;--crittxt:#e66767;--warnbg:#3a2c0a;--critbg:#3b1616;}}
+  --s25:#6f6d66;--s26:#3987e5;--verw:#d95926;--zon:#c98500;--kw:#9085e9;--bat:#199e70;--hover:rgba(255,255,255,.05);
+  --goodtxt:#0ca30c;--crittxt:#e66767;--critbg:#3b1616;}}
 :root[data-theme="dark"]{color-scheme:dark;
   --page:#0d0d0d;--surface:#1a1a19;--ink:#f0efec;--ink2:#c3c2b7;--muted:#898781;--grid:#2c2c2a;--axis:#383835;--ring:rgba(255,255,255,.10);
-  --blue:#3987e5;--orange:#d95926;--aqua:#199e70;--yellow:#c98500;--violet:#9085e9;--gray:#5f5e5a;
-  --goodtxt:#0ca30c;--crittxt:#e66767;--warnbg:#3a2c0a;--critbg:#3b1616;}
+  --s25:#6f6d66;--s26:#3987e5;--verw:#d95926;--zon:#c98500;--kw:#9085e9;--bat:#199e70;--hover:rgba(255,255,255,.05);
+  --goodtxt:#0ca30c;--crittxt:#e66767;}
 *{box-sizing:border-box}
-html{-webkit-text-size-adjust:100%}
-body{margin:0;background:var(--page);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
-main{max-width:760px;margin:0 auto;padding:calc(12px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right)) calc(24px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left))}
-h1{font-size:22px;margin:0;line-height:1.2}
-h2{font-size:17px;margin:0 0 2px}
-h3{font-size:13px;font-weight:600;margin:14px 0 4px;color:var(--ink2)}
+body{margin:0;background:var(--page);color:var(--ink);font:14px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:1200px;margin:0 auto;padding:16px}
+h1{font-size:22px;font-weight:600;margin:0}
+h2{font-size:17px;font-weight:600;margin:0}
+h3{font-size:13px;font-weight:600;margin:16px 0 6px;color:var(--ink2)}
 .sub{color:var(--ink2);font-size:13px}
 .muted{color:var(--muted);font-size:12px}
-.kop{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin:4px 0 14px}
+.card{background:var(--surface);border:1px solid var(--ring);border-radius:12px;padding:16px 18px;margin-bottom:16px;min-width:0}
+.vraag{color:var(--ink2);font-size:13px;margin:2px 0 10px}
+.tegels{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));margin:12px 0 4px}
+.tegel{border:1px solid var(--ring);border-radius:8px;padding:10px 12px}
+.tegel .l{color:var(--ink2);font-size:12px}.tegel .w{font-size:24px;font-weight:600;line-height:1.25;font-variant-numeric:tabular-nums}
+.tegel .x{color:var(--muted);font-size:12px}
+.goed{color:var(--goodtxt)}.slecht{color:var(--crittxt)}
+.legenda{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px;color:var(--ink2);margin:14px 0 4px}
+.legenda span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:12px;height:12px;border-radius:3px;display:inline-block;flex:none}
+.sl{width:18px;height:0;border-top:2px solid;display:inline-block;flex:none}
+.grafiek{position:relative}
+svg{display:block;width:100%;height:auto}
+svg text{fill:var(--muted);font-size:11px;font-variant-numeric:tabular-nums}
+.tip{position:absolute;pointer-events:none;background:var(--surface);border:1px solid var(--ring);border-radius:8px;
+  box-shadow:0 4px 14px rgba(0,0,0,.12);padding:8px 10px;font-size:12px;min-width:200px;display:none;z-index:2}
+.tip b{display:block;margin-bottom:4px;font-size:13px}
+.tip .r{display:flex;justify-content:space-between;gap:12px;font-variant-numeric:tabular-nums}
+.tip .r span:first-child{display:inline-flex;align-items:center;gap:6px;color:var(--ink2)}
+table{border-collapse:collapse;width:100%;font-size:13px;font-variant-numeric:tabular-nums}
+th,td{padding:5px 8px;border-bottom:1px solid var(--grid);text-align:right;white-space:nowrap}
+th:first-child,td:first-child{text-align:left;white-space:normal}
+th{font-weight:600;color:var(--ink2);font-size:12px}
+tr.tot td{font-weight:600;border-top:1px solid var(--axis);border-bottom:none}
+tr.kwh td{color:var(--ink2)}
+.tabwrap{overflow-x:auto}
+details{margin-top:12px}summary{cursor:pointer;color:var(--ink2);font-size:13px}
+select{font:inherit;font-size:13px;padding:2px 6px;border-radius:6px;border:1px solid var(--ring);background:var(--surface);color:var(--ink)}
+.twee{display:grid;gap:24px;grid-template-columns:minmax(0,3fr) minmax(0,2fr)}
+.half{display:grid;gap:24px;grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+.drie{display:grid;gap:20px;grid-template-columns:repeat(3,minmax(0,1fr))}
+@media (max-width:900px){.twee,.half,.drie{grid-template-columns:minmax(0,1fr)}}
+.mini{font-size:12px;margin-top:4px}.mini td{padding:2px 4px;border:none}.mini th{padding:2px 4px;border:none;font-weight:400;color:var(--muted)}
+@media (max-width:520px){th,td{padding:5px 4px;font-size:12px}}
+.kern-rij{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));margin:0 0 10px}
+a.kern{display:block;color:inherit;text-decoration:none;background:var(--surface)}a.kern:hover{border-color:var(--axis)}
+.nav{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px;margin:0 0 16px}.nav a{color:var(--ink2);text-decoration:none}.nav a:hover{color:var(--ink);text-decoration:underline}
+section.card{scroll-margin-top:12px}
+table.d0 td.d0c{vertical-align:top;white-space:normal}table.d0 td.d0c .x{color:var(--muted);font-size:12px}table.d0 th{text-align:left}table.d0 td{text-align:left}
+.kop{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;align-items:baseline;margin-bottom:14px}
+
+body{font-size:15px}
+:root{--warnbg:#fdf3dc;--zon-o:#f7cf6b;--zon-w:#eea03a;--zon-g:#9a3412;--vb-v:#bcd5f5;--vb-g:#1d4f9e;--p-laag:#1baf7a;--p-hoog:#d03b3b}@media (prefers-color-scheme:dark){:root{--warnbg:#3a2c0a;--zon-o:#7a5c16;--zon-w:#a8621c;--zon-g:#ffd58a;--vb-v:#26466c;--vb-g:#8cc0ff;--p-laag:#199e70;--p-hoog:#e66767}}
+main{max-width:480px;padding:0 14px 90px}
+.top{position:sticky;top:0;z-index:5;background:var(--page);padding:12px 0 8px;display:flex;justify-content:space-between;align-items:baseline}
+.top h1{font-size:20px}
+.melding{background:var(--warnbg);color:var(--ink);border-radius:10px;padding:8px 12px;font-size:13px;margin:4px 0 10px}
+.hero{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px}
+.kpi{background:var(--surface);border:1px solid var(--ring);border-radius:12px;padding:10px}
+.kpi .l{font-size:11px;color:var(--ink2)}.kpi .w{font-size:24px;font-weight:650;line-height:1.15;font-variant-numeric:tabular-nums}
+.kpi .w small{font-size:13px;font-weight:500;color:var(--ink2)}.kpi .x{font-size:11px;color:var(--muted)}
+.card{padding:12px 14px;border-radius:14px;margin-bottom:12px}
+.card h3{margin:0 0 6px;font-size:13px}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);background:var(--grid);border-radius:10px;padding:3px;margin:2px 0 10px}
+.seg button{font:inherit;font-size:14px;border:0;background:transparent;padding:7px 0;border-radius:8px;color:var(--ink2)}
+.seg button.akt{background:var(--surface);color:var(--ink);font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.zin{font-size:14px;line-height:1.45;margin-bottom:8px}
+.rij{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid var(--grid);font-variant-numeric:tabular-nums}
+.rij:last-of-type{border-bottom:0}.rij>span:first-child{color:var(--ink2)}.klein{font-size:12px;text-align:right}
+.groot{font-size:34px;font-weight:650;line-height:1.15;font-variant-numeric:tabular-nums}
+.l{font-size:12px;color:var(--ink2)}.x{font-size:12px;color:var(--muted);margin-top:4px}
+.balk{position:relative;height:10px;background:var(--grid);border-radius:6px;margin:10px 0 4px}
+.balk i{position:absolute;left:0;top:0;bottom:0;background:var(--s26);border-radius:6px}
+.balk b{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--ink)}
+.legenda{margin:4px 0 2px;gap:4px 12px}
+nav.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:9;display:grid;grid-template-columns:repeat(3,1fr);background:var(--surface);border-top:1px solid var(--ring);padding:6px 0 calc(6px + env(safe-area-inset-bottom))}
+nav.tabbar button{font:inherit;font-size:12px;border:0;background:none;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:2px}
+nav.tabbar button svg{width:22px;height:22px}
+nav.tabbar button.akt{color:var(--s26);font-weight:600}
+
+html{-webkit-text-size-adjust:100%}
+main{padding-left:calc(14px + env(safe-area-inset-left));padding-right:calc(14px + env(safe-area-inset-right))}
+.top{padding-top:calc(12px + env(safe-area-inset-top))}
 .knoppen{display:flex;gap:8px;flex-shrink:0}
 button{font:inherit;font-size:14px;color:var(--ink);background:var(--surface);border:1px solid var(--ring);border-radius:10px;padding:7px 12px;cursor:pointer;-webkit-tap-highlight-color:transparent}
 button.hoofd{background:var(--ink);color:var(--page);border-color:var(--ink);font-weight:600;padding:12px 20px;font-size:16px}
 button:disabled{opacity:.5}
-.card{background:var(--surface);border:1px solid var(--ring);border-radius:14px;padding:14px;margin-bottom:14px;min-width:0}
+.kop{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin:16px 0 14px}
 .banner{border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:13px}
 .banner.warn{background:var(--warnbg)}.banner.crit{background:var(--critbg)}
-.grafiek{position:relative;height:220px;margin-top:6px}.grafiek.laag{height:160px}
-.legenda{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--ink2);margin-top:6px}
-.legenda i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
-.legenda i.lijn{height:2px;width:14px;border-radius:0;vertical-align:3px}
-.legenda i.stip{height:0;width:14px;border-top:2px dashed;background:none!important;vertical-align:3px}
-.dagen{list-style:none;margin:6px 0 0;padding:0;font-size:13px;color:var(--ink2);font-variant-numeric:tabular-nums}
-.dagen li{padding:3px 0;border-bottom:1px solid var(--grid)}.dagen li:last-child{border-bottom:0}
-.dagen b{color:var(--ink);font-weight:600;display:inline-block;min-width:68px}
-.midden{text-align:center;padding:48px 8px}
-.midden p{color:var(--ink2);margin:0 0 20px}
+.midden{text-align:center;padding:48px 8px}.midden p{color:var(--ink2);margin:0 0 20px}
+.tip{min-width:170px}
 </style>
 </head>
 <body>
 <main id="app"><div class="midden"><p>Laden…</p></div></main>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>
 "use strict";
 // ================================================================== instellingen
 const CLIENT_ID = "6586dbdb-2426-484e-b3b3-8304c079b511";        // Azure app-registratie (Application (client) ID), zie handleiding
-const PAD = "AI Projects/Energie Claude/4_Uitvoer/mobiel_data.json";   // t.o.v. de hoofdmap van OneDrive
+const PAD = "AI Projects/Energie Claude/4_Uitvoer/mobiel_v2.json";   // t.o.v. de hoofdmap van OneDrive
 const OUD_MIN = 45;                                    // data ouder dan dit -> gele balk
 const VERVERS_MIN = 5;                                 // opnieuw ophalen zolang de pagina open is
 const AUTH = "https://login.microsoftonline.com/consumers/oauth2/v2.0";
@@ -77,14 +140,9 @@ const SCOPE = "Files.Read offline_access";
 const REDIRECT = location.origin + location.pathname;
 
 // ================================================================== hulpjes
-const $ = s => document.querySelector(s);
-const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
-const nf = (x, d = 1) => x == null || isNaN(x) ? "–" : x.toLocaleString("nl-NL", {minimumFractionDigits: d, maximumFractionDigits: d});
-const tijd = s => s ? new Date(s).toLocaleString("nl-NL", {weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit"}) : "–";
+const q = s => document.querySelector(s);
 const kloktijd = s => s ? new Date(s).toLocaleTimeString("nl-NL", {hour: "2-digit", minute: "2-digit"}) : "–";
-const dagnaam = s => new Date(s + "T12:00").toLocaleDateString("nl-NL", {weekday: "short", day: "2-digit", month: "2-digit"});
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
-const BANDKLEUR = {laag: "--aqua", regulier: "--gray", hoog: "--orange", negatief: "--blue"};
 const opslag = {
   get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
   set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
@@ -140,7 +198,7 @@ async function haalData(token) {
   const pad = PAD.split("/").map(encodeURIComponent).join("/");
   const r = await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${pad}`, {headers: {Authorization: "Bearer " + token}});
   if (r.status === 401) { opslag.del("tok"); throw Object.assign(new Error("Inloggen verlopen"), {inlog: true}); }
-  if (r.status === 404) throw new Error("mobiel_data.json niet gevonden in OneDrive (" + PAD + ").");
+  if (r.status === 404) throw new Error("mobiel_v2.json niet gevonden in OneDrive (" + PAD + ").");
   if (!r.ok) throw new Error("OneDrive gaf fout " + r.status);
   const item = await r.json();
   const url = item["@microsoft.graph.downloadUrl"];
@@ -153,131 +211,334 @@ async function haalData(token) {
   return M;
 }
 
-// ================================================================== schermen
-function scherm(html) { if (window.Chart) Object.values(Chart.instances || {}).forEach(c => c.destroy()); $("#app").innerHTML = html; }
+// ================================================================== hulpjes en grafiek-bouwstenen (zelfde als Dashboard_nieuw.html)
+const nl=(x,d=2)=>x.toLocaleString('nl-NL',{minimumFractionDigits:d,maximumFractionDigits:d});
+const eur=(x,d=2)=>x==null?'–':(x<0?'− ':'')+'€ '+nl(Math.abs(x),d);
+const kwh=(x,d=1)=>x==null?'–':(x<0?'− ':'')+nl(Math.abs(x),d)+' kWh';
+const ct=x=>x==null?'–':nl(x,1)+' ct';
+const dat=s=>{const [j,m,d]=s.slice(0,10).split('-');return `${+d}-${+m}-${j}`};
+const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const NS='http://www.w3.org/2000/svg';
+function el(tag,attr,par){const e=document.createElementNS(NS,tag);for(const k in attr)e.setAttribute(k,attr[k]);if(par)par.appendChild(e);return e}
+const $=id=>document.getElementById(id);
+function verschil(a,b,f=eur,woorden=['duurder','goedkoper']){ // b - a; hoger = woorden[0]
+  if(a==null||b==null)return '';const v=b-a;
+  return `<span class="${v>0?'slecht':'goed'}">${f(Math.abs(v))} ${v>0?woorden[0]:woorden[1]}</span>`}
 
+// ---------------------------------------------------------------- grafiek-bouwstenen
+const swatch=s=>s.lijn?`<i class="sl" style="border-top:2px ${s.streep?'dashed':'solid'} var(${s.kleur})"></i>`
+  :`<i class="sw" style="background:${s.arcering?`repeating-linear-gradient(135deg,var(${s.kleur}) 0 3px,transparent 3px 5px);border:1.5px solid var(${s.kleur})`:`var(${s.kleur})`}"></i>`;
+const legenda=(id,series)=>{$(id).innerHTML=series.map(s=>`<span>${swatch(s)}${s.naam}</span>`).join('')};
+const tipRij=(s,txt)=>`<div class="r"><span>${s?swatch(s):''}${s?s.naam:''}</span><span>${txt}</span></div>`;
+const tekenaars=[];
+function stapVan(vals){const v=vals.filter(x=>x!=null),r=Math.max(0,...v)-Math.min(0,...v),ruw=r/5;
+  return [0.25,0.5,1,2,2.5,5,10,20,25,50,100,200,250,500].find(s=>s>=ruw)||1000}
+function bereik(vals,stap){const v=vals.filter(x=>x!=null);return [Math.floor(Math.min(0,...v)/stap)*stap,Math.ceil(Math.max(0,...v)/stap)*stap]}
+function kader(box,label,H0){
+  box.querySelectorAll('svg').forEach(s=>s.remove());
+  const W=Math.max(box.clientWidth,300),H=W<600?Math.round(H0*0.8):H0;
+  const svg=el('svg',{viewBox:`0 0 ${W} ${H}`,role:'img','aria-label':label});box.insertBefore(svg,box.querySelector('.tip'));return [svg,W,H]}
+function asSchaal(svg,W,lo,hi,stap,y,L,R,fmt){
+  for(let v=lo;v<=hi+1e-9;v+=stap){el('line',{x1:L,x2:W-R,y1:y(v),y2:y(v),stroke:css(v===0?'--axis':'--grid'),'stroke-width':v===0?1.5:1},svg);
+    const t=el('text',{x:L-6,y:y(v)+4,'text-anchor':'end'},svg);t.textContent=fmt(v)}}
+function plaatsTip(box,tip,ev,html){
+  tip.innerHTML=html;tip.style.display='block';
+  const b=box.getBoundingClientRect();let lx=ev.clientX-b.left+14;if(lx+tip.offsetWidth>b.width)lx=ev.clientX-b.left-tip.offsetWidth-14;
+  tip.style.left=Math.max(0,lx)+'px';tip.style.top=Math.max(0,ev.clientY-b.top-tip.offsetHeight/2)+'px'}
+// staafgrafiek: cfg {box,cats,series[{naam,kleur,arcering,vals,licht[]}],stap,fmtAs,tipHtml(i),gekozen(),klik(i),hoogte,label}
+function staven(cfg){
+  const box=$(cfg.box),tip=box.querySelector('.tip');
+  const teken=()=>{if(!cfg.cats.length)return;
+    const [svg,W,H]=kader(box,cfg.label,cfg.hoogte||300),L=50,R=8,TP=10,B=24,n=cfg.cats.length;
+    const stap=cfg.stap||stapVan(cfg.series.flatMap(s=>s.vals)),[lo,hi]=bereik(cfg.series.flatMap(s=>s.vals),stap),y=v=>TP+(hi-v)/(hi-lo)*(H-TP-B),gw=(W-L-R)/n;
+    const defs=el('defs',{},svg);
+    cfg.series.filter(s=>s.arcering).forEach(s=>{const p=el('pattern',{id:cfg.box+'-arc',width:5,height:5,patternUnits:'userSpaceOnUse',patternTransform:'rotate(45)'},defs);
+      el('rect',{width:2.5,height:5,fill:css(s.kleur)},p)});
+    asSchaal(svg,W,lo,hi,stap,y,L,R,cfg.fmtAs);
+    const ns=cfg.series.length,bw=Math.min(16,(gw-10)/ns),gek=cfg.gekozen?cfg.gekozen():null;
+    cfg.cats.forEach((c,i)=>{
+      const cx=L+gw*i+gw/2;
+      if(i===gek)el('rect',{x:L+gw*i+1,y:TP,width:gw-2,height:H-TP-B,fill:css('--hover'),rx:6},svg);
+      cfg.series.forEach((s,j)=>{const v=s.vals[i];if(v==null)return;
+        const x0=cx+(j-(ns-1)/2)*(bw+2)-bw/2,y0=y(0),y1=y(v),h=Math.abs(y1-y0),r=Math.min(4,h,bw/2),o=v>=0?r:-r;
+        const d=`M${x0},${y0}V${y1+o}Q${x0},${y1} ${x0+r},${y1}H${x0+bw-r}Q${x0+bw},${y1} ${x0+bw},${y1+o}V${y0}Z`;
+        const licht=s.licht&&s.licht[i];
+        el('path',{d,fill:s.arcering?`url(#${cfg.box}-arc)`:css(s.kleur),'fill-opacity':licht?0.35:1,
+          stroke:s.arcering||licht?css(s.kleur):'none','stroke-width':s.arcering||licht?1.5:0},svg)});
+      const elke=Math.max(1,Math.ceil(40/gw)),t=el('text',{x:cx,y:H-6,'text-anchor':'middle'},svg);t.textContent=(i%elke===0||i===gek)?c:'';
+      if(i===gek){t.style.fill=css('--ink');t.style.fontWeight=600}
+      const hit=el('rect',{x:L+gw*i,y:0,width:gw,height:H,fill:'transparent',style:cfg.klik?'cursor:pointer':''},svg);
+      hit.addEventListener('mousemove',ev=>plaatsTip(box,tip,ev,cfg.tipHtml(i)));hit.addEventListener('mouseleave',()=>tip.style.display='none');
+      if(cfg.klik)hit.addEventListener('click',()=>{cfg.klik(i);teken()});
+    })};
+  tekenaars.push(teken);teken();return teken}
+// lijngrafiek: cfg {box,cats,series[{naam,kleur,streep,vals}],stap,fmtAs,tipHtml(i),hoogte,label,vanNul}
+function lijnen(cfg){
+  const box=$(cfg.box),tip=box.querySelector('.tip');
+  const teken=()=>{if(!cfg.cats.length)return;
+    const [svg,W,H]=kader(box,cfg.label,cfg.hoogte||300),L=50,R=8,TP=10,B=24,n=cfg.cats.length;
+    const v=cfg.series.flatMap(s=>s.vals).concat(cfg.band?cfg.band.lo.concat(cfg.band.hi):[]).filter(x=>x!=null);
+    const stap=cfg.stap||stapVan(v),lo=cfg.vanNul?0:Math.min(0,Math.floor(Math.min(...v)/stap)*stap),hi=Math.max(0,Math.ceil(Math.max(...v)/stap)*stap);
+    const y=w=>TP+(hi-w)/(hi-lo)*(H-TP-B),gw=(W-L-R)/n,x=i=>L+gw*i+gw/2;
+    asSchaal(svg,W,lo,hi,stap,y,L,R,cfg.fmtAs);
+    const elke=Math.max(1,Math.ceil(44/gw));
+    cfg.cats.forEach((c,i)=>{const lab=cfg.label_i?cfg.label_i(i,gw):(i%elke?'':c);if(!lab)return;const t=el('text',{x:x(i),y:H-6,'text-anchor':cfg.label_i?'start':'middle'},svg);t.textContent=lab});
+    if(cfg.band){let up='',dn='';cfg.band.lo.forEach((l,i)=>{const h=cfg.band.hi[i];if(l==null||h==null)return;up+=(up?'L':'M')+x(i)+','+y(h);dn='L'+x(i)+','+y(l)+dn});
+      if(up)el('path',{d:up+dn+'Z',fill:css(cfg.band.kleur),'fill-opacity':0.16,stroke:'none'},svg)}
+    (cfg.scheiding||[]).forEach(i=>el('line',{x1:L+gw*i,x2:L+gw*i,y1:TP,y2:H-B,stroke:css('--axis'),'stroke-width':1},svg));
+    if(cfg.markeer!=null)el('line',{x1:x(cfg.markeer),x2:x(cfg.markeer),y1:TP,y2:H-B,stroke:css('--ink'),'stroke-width':1,'stroke-dasharray':'2 3'},svg);
+    const kruis=el('line',{y1:TP,y2:H-B,stroke:css('--axis'),'stroke-width':1,visibility:'hidden'},svg);
+    cfg.series.forEach(s=>{let d='';s.vals.forEach((w,i)=>{if(w==null){d+=' ';return}d+=(d===''||d.endsWith(' ')?'M':'L')+x(i)+','+y(w)});
+      el('path',{d:d.replace(/ +/g,' ').trim(),fill:'none',stroke:css(s.kleur),'stroke-width':2,'stroke-dasharray':s.streep?'5 4':'none','stroke-linejoin':'round'},svg);
+      if(n<=31&&!cfg.geenPunten)s.vals.forEach((w,i)=>{if(w!=null)el('circle',{cx:x(i),cy:y(w),r:3.5,fill:s.streep?css('--surface'):css(s.kleur),stroke:css(s.streep?s.kleur:'--surface'),'stroke-width':s.streep?2:1.5},svg)})});
+    cfg.cats.forEach((c,i)=>{const hit=el('rect',{x:L+gw*i,y:0,width:gw,height:H,fill:'transparent'},svg);
+      hit.addEventListener('mousemove',ev=>{kruis.setAttribute('x1',x(i));kruis.setAttribute('x2',x(i));kruis.setAttribute('visibility','visible');plaatsTip(box,tip,ev,cfg.tipHtml(i))});
+      hit.addEventListener('mouseleave',()=>{tip.style.display='none';kruis.setAttribute('visibility','hidden')})})};
+  tekenaars.push(teken);teken();return teken}
+// ================================================================== schermen
+function scherm(html) { q("#app").innerHTML = html; }
 function inlogScherm(melding, knop = true) {
+  tekenaars.length = 0;
   scherm(`<div class="kop"><h1>Energie thuis</h1></div>
     ${melding ? `<div class="banner crit">${esc(melding)}</div>` : ""}
     ${knop ? `<div class="midden"><p>Log in met je Microsoft-account om de gegevens uit OneDrive te lezen.</p>
     <button class="hoofd" id="bInlog">Inloggen</button></div>` : ""}`);
-  if (knop) $("#bInlog").onclick = inloggen;
+  if (knop) q("#bInlog").onclick = inloggen;
+}
+// ================================================================== weergave (versie 2, ontwerp 8-11-2026)
+const c1 = x => x == null ? '–' : nl(x, 1) + ' ct';
+const k1 = x => x == null ? '–' : nl(x, 1);
+const kwhT = v => nl(v, 1) + ' kWh';
+const KL = {laag: '--p-laag', regulier: '--s25', hoog: '--p-hoog', negatief: '--p-laag'};
+const TABS = ['dagen', 'maand', 'jaar'];
+let tab = opslag.get('tab') || 'dagen', dag = 1;
+if (!TABS.includes(tab)) tab = 'dagen';
+
+function kaartFout(id, e) { const k = $(id); if (k) k.innerHTML = `<div class="muted">Niet beschikbaar (${esc(e.message)})</div>`; }
+
+function kiesTab(t) {
+  tab = t; opslag.set('tab', t);
+  TABS.forEach(x => { $('t-' + x).hidden = x !== t; $('b-' + x).classList.toggle('akt', x === t); });
+  tekenaars.forEach(f => f()); scrollTo(0, 0);
 }
 
-function leg(items) {
-  return `<div class="legenda">${items.map(([naam, kl, soort]) =>
-    `<span><i class="${soort || ""}" style="background:var(${kl});border-color:var(${kl})"></i>${naam}</span>`).join("")}</div>`;
+// combinatiegrafiek: verwacht als (gestapelde) balken, gemeten als lijn op de voorgrond
+function combo(cfg) {
+  const box = $(cfg.box), tip = box.querySelector('.tip');
+  const teken = () => {
+    const U = cfg.U || []; if (!U.length) return;
+    const [svg, W, H] = kader(box, cfg.label, 170), L = 34, R = 6, TP = 8, Bm = 20, n = U.length;
+    const tops = U.map(u => cfg.balken.reduce((a, b) => a + (u[b.k] || 0), 0)), lijn = U.map(u => u[cfg.lijn.k]);
+    const mx = Math.max(0.1, ...tops, ...lijn.filter(v => v != null)), stap = stapVan([0, mx]), hi = Math.ceil(mx / stap) * stap;
+    const y = v => TP + (hi - v) / hi * (H - TP - Bm), gw = (W - L - R) / n, x = i => L + gw * i + gw / 2;
+    asSchaal(svg, W, 0, hi, stap, y, L, R, v => v === 0 || Number.isInteger(v) ? String(v) : nl(v, Number.isInteger(Math.round(v * 1000) / 100) ? 1 : 2));
+    U.forEach((u, i) => {
+      let b0 = 0;
+      cfg.balken.forEach(b => { const v = u[b.k] || 0; if (v <= 0) return;
+        el('rect', {x: L + gw * i + gw * 0.12, y: y(b0 + v), width: gw * 0.76, height: y(b0) - y(b0 + v), fill: css(b.kleur)}, svg); b0 += v; });
+      if (u.uur % 6 === 0) { const t = el('text', {x: x(i), y: H - 5, 'text-anchor': 'middle'}, svg); t.textContent = u.uur + 'u'; }
+    });
+    if (cfg.ni != null && cfg.ni >= 0) el('line', {x1: x(cfg.ni), x2: x(cfg.ni), y1: TP - 3, y2: H - Bm, stroke: css('--ink'), 'stroke-width': 1, 'stroke-dasharray': '2 3'}, svg);
+    let d = ''; lijn.forEach((v, i) => { if (v == null) { d += ' '; return; } d += (d === '' || d.endsWith(' ') ? 'M' : 'L') + x(i) + ',' + y(v); });
+    d = d.replace(/ +/g, ' ').trim();
+    if (d) {
+      el('path', {d, fill: 'none', stroke: css('--surface'), 'stroke-width': 5, 'stroke-linejoin': 'round', 'stroke-linecap': 'round'}, svg);
+      el('path', {d, fill: 'none', stroke: css(cfg.lijn.kleur), 'stroke-width': 2.5, 'stroke-linejoin': 'round', 'stroke-linecap': 'round'}, svg);
+      lijn.forEach((v, i) => { if (v != null) el('circle', {cx: x(i), cy: y(v), r: 2.6, fill: css(cfg.lijn.kleur), stroke: css('--surface'), 'stroke-width': 1.2}, svg); });
+    }
+    U.forEach((u, i) => {
+      const hit = el('rect', {x: L + gw * i, y: 0, width: gw, height: H, fill: 'transparent'}, svg);
+      hit.addEventListener('mousemove', ev => {
+        let h = `<b>${u.uur}:00–${u.uur + 1}:00</b>` + tipRij(cfg.lijn, u[cfg.lijn.k] == null ? '–' : nl(u[cfg.lijn.k], 2) + ' kWh');
+        cfg.balken.forEach(b => h += tipRij(b, u[b.k] == null ? '–' : nl(u[b.k], 2) + ' kWh'));
+        plaatsTip(box, tip, ev, h);
+      });
+      hit.addEventListener('mouseleave', () => tip.style.display = 'none');
+    });
+  };
+  tekenaars.push(teken); return cfg;
 }
+const legCombo = c => [...c.balken, c.lijn].map(s => `<span>${s === c.lijn ? `<i class="sl" style="border-top:3px solid var(${s.kleur})"></i>` : `<i class="sw" style="background:var(${s.kleur})"></i>`}${s.naam}</span>`).join('');
 
 function toon(M, opmerking) {
-  const k = M.kop, v = M.vandaag, z = M.zon, p = M.prijzen;
-  const leeftijd = (Date.now() - new Date(k.gemaakt)) / 60000;
-  let h = `<div class="kop"><div><h1>Energie thuis</h1>
-      <div class="sub">bijgewerkt ${tijd(k.gemaakt)}</div>
-      <div class="muted">opgehaald ${kloktijd(M._opgehaald)}</div></div>
-    <div class="knoppen"><button id="bVervers" aria-label="Verversen">↻</button><button id="bUit">Afmelden</button></div></div>`;
-  if (opmerking) h += `<div class="banner warn">${esc(opmerking)}</div>`;
-  if (leeftijd > OUD_MIN) h += `<div class="banner warn"><b>Gegevens zijn ${leeftijd < 120 ? Math.round(leeftijd) + " minuten" : nf(leeftijd / 60, 0) + " uur"} oud.</b>
-    Staat de pc aan en loopt de taak 'Dashboard elk kwartier'? Synchroniseert OneDrive?</div>`;
-  if (k.fouten && k.fouten.length) h += `<div class="banner crit"><b>Fout bij ophalen:</b> ${esc(k.fouten.join(", "))} (zie dashboard op de pc)</div>`;
-
-  // 2 · Vandaag
-  h += `<section class="card"><h2>Vandaag</h2>
-    <div class="sub">werkelijk (staven) tegenover verwacht (lijnen)</div>
-    <h3>Verbruik en zon per uur (kWh)</h3><div class="grafiek"><canvas id="cVandaag"></canvas></div>
-    ${leg([["verbruik", "--blue"], ["zon", "--yellow"], ["verbruik verwacht", "--blue", "stip"], ["zon verwacht", "--yellow", "stip"]])}
-    <h3>Laadtoestand (%)</h3><div class="grafiek laag"><canvas id="cSoc"></canvas></div>
-    ${leg([["gemeten", "--violet", "lijn"], ["plan", "--violet", "stip"]])}
-    <div class="muted" style="margin-top:6px">verwachting ${esc(v.verw_bron || "–")} ${tijd(v.verw_t)} · plan ${tijd(v.plan_opgesteld)}</div></section>`;
-
-  // 3 · Zon
-  h += `<section class="card"><h2>Zon gisteren, vandaag, morgen</h2>
-    <ul class="dagen">${z.dagen.map(d => `<li><b>${dagnaam(d.dag)}</b> verwacht ${nf(d.verw, 1)} kWh${d.werk != null ? ` · gemeten ${nf(d.werk, 1)} kWh` : ""}</li>`).join("")}</ul>
-    <div class="grafiek"><canvas id="cZon"></canvas></div>
-    ${leg([["verwacht oost", "--orange"], ["verwacht west", "--yellow"], ["gemeten", "--blue", "lijn"]])}</section>`;
-
-  // 7 · Prijzen
-  h += `<section class="card"><h2>Prijzen</h2>
-    <ul class="dagen">${p.dagen.map(d => d.bekend
-      ? `<li><b>${dagnaam(d.dag)}</b> ${nf(d.min, 1)} – ${nf(d.max, 1)} ct · gem. ${nf(d.gem, 1)} ct<br><span class="muted">inkoop effectief gem. ${nf(d.inkoop_gem, 1)} ct</span></li>`
-      : `<li><b>${dagnaam(d.dag)}</b> nog niet bekend</li>`).join("")}</ul>
-    <h3>Vandaag en morgen per kwartier (EPEX, ct/kWh)</h3><div class="grafiek"><canvas id="cPrijs2"></canvas></div>
-    ${leg([["laag", "--aqua"], ["regulier", "--gray"], ["hoog", "--orange"], ["negatief", "--blue"]])}
-    <h3>Verwachting 7 dagen (jeroen.nl, ${tijd(p.jeroen.t)})</h3><div class="grafiek"><canvas id="cJeroen"></canvas></div>
-    ${leg([["bekend", "--violet", "lijn"], ["verwachting p50", "--blue", "lijn"], ["band p10–p90", "--blue"]])}
-    <div class="muted" style="margin-top:6px">Bron prijsverwachting: jeroen.nl, persoonlijk gebruik.</div></section>`;
-
-  scherm(h);
-  $("#bVervers").onclick = () => start(true);
-  $("#bUit").onclick = uitloggen;
-  if (window.Chart) grafieken(M);
-  else document.querySelectorAll(".grafiek").forEach(g => g.innerHTML = '<p class="muted">Grafiek niet beschikbaar (Chart.js niet geladen).</p>');
+  tekenaars.length = 0;
+  const leeftijd = (Date.now() - new Date(M.gemaakt)) / 60000;
+  let mld = '';
+  if (opmerking) mld += `<div class="melding">${esc(opmerking)}</div>`;
+  if (leeftijd > OUD_MIN) mld += `<div class="melding"><b>Gegevens zijn ${leeftijd < 120 ? Math.round(leeftijd) + ' minuten' : nl(leeftijd / 60, 0) + ' uur'} oud.</b> Staat de pc aan en synchroniseert OneDrive?</div>`;
+  (M.meldingen || []).forEach(t => mld += `<div class="melding">⚠ ${esc(t)}</div>`);
+  const ic = {
+    dagen: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>',
+    maand: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>',
+    jaar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>'};
+  scherm(`<div class="top"><div><h1>Energie</h1><div class="muted">bijgewerkt ${esc(M.gemaakt.slice(11, 16))} · opgehaald ${kloktijd(M._opgehaald)}</div></div>
+    <div class="knoppen"><button id="bVervers" aria-label="Verversen">↻</button><button id="bUit">Afmelden</button></div></div>
+  ${mld}
+  <section id="t-dagen">
+   <div class="hero" id="hero1"></div>
+   <div class="seg" id="seg"></div>
+   <div class="card"><div id="dagcijfers"></div></div>
+   <div class="card"><h3>Zon per uur (kWh)</h3><div class="legenda" id="leg-zon"></div><div class="grafiek" id="g-zon"><div class="tip"></div></div></div>
+   <div class="card"><h3>Huisverbruik per uur (kWh)</h3><div class="legenda" id="leg-vb"></div><div class="grafiek" id="g-vb"><div class="tip"></div></div></div>
+   <div class="card"><h3>Laadtoestand batterij (%)</h3><div class="legenda"><span><i class="sl" style="border-top:2px solid var(--bat)"></i>gemeten</span><span><i class="sl" style="border-top:2px dashed var(--bat)"></i>plan dagadvies</span></div><div class="grafiek" id="g-soc"><div class="tip"></div></div></div>
+   <div class="card" id="prijskaart"><h3>Prijs per kwartier</h3><div class="legenda" id="leg-pr"></div><div class="grafiek" id="g-pr"><div class="tip"></div></div><div class="x" id="prijsx"></div></div>
+  </section>
+  <section id="t-maand" hidden>
+   <div class="card" id="m-hero"></div>
+   <div class="card"><h3>Vergelijking</h3><div id="m-vgl"></div></div>
+   <div class="card"><h3>Kosten per dag (€, stroom incl. btw en EB)</h3><div class="legenda" id="leg-mk"></div><div class="grafiek" id="g-mk"><div class="tip"></div></div></div>
+   <div class="card"><h3>Batterij</h3><div id="m-bat"></div></div>
+  </section>
+  <section id="t-jaar" hidden>
+   <div class="l" id="j-titel" style="margin:2px 0 8px;font-weight:600;color:var(--ink)"></div>
+   <div class="card" id="j-hero"></div>
+   <div class="card"><h3>Factuur per maand (€)</h3><div class="legenda" id="leg-jf"></div><div class="grafiek" id="g-jf"><div class="tip"></div></div><div class="x">onder 0 = uitbetaling</div></div>
+   <div class="card"><h3>Saldo en EB-verrekening</h3><div id="j-saldo"></div></div>
+   <div class="card" id="j-bat"></div>
+   <div class="card" id="j-batg"><h3>Batterij opgeteld (€)</h3><div class="legenda"><span><i class="sl" style="border-top:2px solid var(--bat)"></i>gemeten</span><span><i class="sl" style="border-top:2px dashed var(--bat)"></i>schatting</span></div><div class="grafiek" id="g-jb"><div class="tip"></div></div></div>
+  </section>
+  <nav class="tabbar">${TABS.map(t => `<button id="b-${t}">${ic[t]}${t[0].toUpperCase() + t.slice(1)}</button>`).join('')}</nav>`);
+  $('bVervers').onclick = () => start(true);
+  $('bUit').onclick = uitloggen;
+  TABS.forEach(t => $('b-' + t).addEventListener('click', () => kiesTab(t)));
+  try { toonDagen(M); } catch (e) { kaartFout('dagcijfers', e); }
+  try { toonMaand(M); } catch (e) { kaartFout('m-hero', e); }
+  try { toonJaar(M); } catch (e) { kaartFout('j-hero', e); }
+  kiesTab(tab);
 }
 
-// ================================================================== grafieken (zelfde stijl als Dashboard.html)
-function basis(extra = {}) {
-  Chart.defaults.font.family = 'system-ui,-apple-system,"Segoe UI",sans-serif';
-  Chart.defaults.font.size = 11; Chart.defaults.color = css("--muted");
-  return {responsive: true, maintainAspectRatio: false, animation: false,
-    interaction: {mode: "index", intersect: false},
-    plugins: {legend: {display: false}, tooltip: {backgroundColor: css("--surface"), titleColor: css("--ink"), bodyColor: css("--ink2"),
-      borderColor: css("--ring"), borderWidth: 1, padding: 8,
-      callbacks: {label: c => c.parsed.y == null ? null : ` ${c.dataset.label}: ${nf(c.parsed.y, extra.dec ?? 2)}${extra.eenheid ?? ""}`}}},
-    scales: {x: {grid: {display: false}, border: {color: css("--axis")}, ticks: {maxRotation: 0, autoSkipPadding: 10}},
-             y: {grid: {color: css("--grid")}, border: {display: false}, beginAtZero: true, ticks: {callback: x => nf(x, extra.ydec ?? 1)}}}};
+// ------------------------------------------------------------------ tabblad Dagen
+function toonDagen(M) {
+  const X = M.drie, P = M.prijzen, vd = X.dagen[1];
+  const nu = P.dagen[0] && P.dagen[0].bekend ? P.dagen[0].kw.find(x => x.nu) : null;
+  $('hero1').innerHTML = `
+   <div class="kpi"><div class="l">Prijs nu</div><div class="w">${nu ? nl(nu.p, 1) : '–'}<small> ct</small></div><div class="x">${nu ? 'band ' + nu.b : ''}</div></div>
+   <div class="kpi"><div class="l">Batterij</div><div class="w">${vd.soc_nu == null ? '–' : nl(vd.soc_nu, 0)}<small>%</small></div><div class="x">plan eind dag ${vd.soc_plan_eind == null ? '–' : nl(vd.soc_plan_eind, 0) + '%'}</div></div>
+   <div class="kpi"><div class="l">Zon vandaag</div><div class="w">${k1(vd.zon_w)}<small> kWh</small></div><div class="x">verwacht ${k1(vd.zon_v)}</div></div>`;
+  $('seg').innerHTML = ['Gisteren', 'Vandaag', 'Morgen'].map((n, i) => `<button data-i="${i}">${n}</button>`).join('');
+  $('seg').querySelectorAll('button').forEach(b => b.addEventListener('click', () => { dag = +b.dataset.i; tekenDag(); }));
+  const S2 = [{naam: 'gemeten', kleur: '--bat', lijn: true}, {naam: 'plan', kleur: '--bat', lijn: true, streep: true}];
+  const zonCfg = combo({box: 'g-zon', label: 'Zon per uur', balken: [{k: 'zon_vo', naam: 'verwacht oost', kleur: '--zon-o'}, {k: 'zon_vw', naam: 'verwacht west', kleur: '--zon-w'}], lijn: {k: 'zon_w', naam: 'gemeten', kleur: '--zon-g'}});
+  const vbCfg = combo({box: 'g-vb', label: 'Verbruik per uur', balken: [{k: 'verbr_v', naam: 'verwacht', kleur: '--vb-v'}], lijn: {k: 'verbr_w', naam: 'gemeten', kleur: '--vb-g'}});
+  $('leg-zon').innerHTML = legCombo(zonCfg); $('leg-vb').innerHTML = legCombo(vbCfg);
+  const socCfg = {geenPunten: true, box: 'g-soc', label: 'Laadtoestand', cats: [], series: S2.map(s => ({...s, vals: []})), hoogte: 140, vanNul: true, stap: 50, fmtAs: v => v + '%',
+    label_i: i => ['0', '6', '12', '18'].includes(socCfg.cats[i]) ? socCfg.cats[i] + 'u' : '',
+    tipHtml: i => { const u = socCfg.U[i]; return `<b>${u.uur}:00</b>` + tipRij(socCfg.series[0], u.soc_w == null ? '–' : u.soc_w + '%') + tipRij(socCfg.series[1], u.soc_p == null ? '–' : u.soc_p + '%'); }};
+  const prCfg = {R: []};
+  (function () {
+    const box = $('g-pr'), tip = box.querySelector('.tip');
+    function t() {
+      const R = prCfg.R; if (!R.length) return;
+      const [svg, W, H] = kader(box, 'Prijs per kwartier', 150), L = 34, Rm = 4, TP = 8, Bm = 20, n = R.length;
+      const stap = stapVan(R.map(x => x.p)), [lo, hi] = bereik(R.map(x => x.p), stap), y = v => TP + (hi - v) / (hi - lo) * (H - TP - Bm), bw = (W - L - Rm) / n;
+      asSchaal(svg, W, lo, hi, stap, y, L, Rm, v => String(v));
+      R.forEach((x, i) => {
+        el('rect', {x: L + i * bw + 0.2, y: Math.min(y(x.p), y(0)), width: Math.max(bw - 0.4, 0.8), height: Math.abs(y(0) - y(x.p)), fill: css(KL[x.b] || '--s25')}, svg);
+        if (x.t.endsWith(':00') && +x.t.slice(0, 2) % 6 === 0) { const tt = el('text', {x: L + i * bw, y: H - 5, 'text-anchor': 'middle'}, svg); tt.textContent = x.t.slice(0, 2) + 'u'; }
+        if (x.nu) el('line', {x1: L + i * bw, x2: L + i * bw, y1: TP - 3, y2: H - Bm, stroke: css('--ink'), 'stroke-width': 1.5}, svg);
+        const hit = el('rect', {x: L + i * bw, y: 0, width: bw, height: H, fill: 'transparent'}, svg);
+        hit.addEventListener('mousemove', ev => plaatsTip(box, tip, ev, `<b>${x.t}</b>${tipRij(null, c1(x.p) + ' · ' + x.b)}`));
+        hit.addEventListener('mouseleave', () => tip.style.display = 'none');
+      });
+    }
+    tekenaars.push(t);
+  })();
+  $('leg-pr').innerHTML = ['laag', 'regulier', 'hoog'].map(b => `<span><i class="sw" style="background:var(${KL[b]})"></i>${b}</span>`).join('') + `<span class="muted">ct/kWh incl. btw en EB</span>`;
+  lijnen(socCfg);
+  function tekenDag() {
+    $('seg').querySelectorAll('button').forEach(b => b.classList.toggle('akt', +b.dataset.i === dag));
+    const s = X.dagen[dag];
+    const rij = (n, w, v, f) => `<div class="rij"><span>${n}</span><span><b>${w == null ? '–' : f(w)}</b>${v != null ? ` <span class="muted">/ ${f(v)}</span>` : ''}</span></div>`;
+    $('dagcijfers').innerHTML = (dag === 2
+      ? rij('Zon (verwacht)', s.zon_v, null, kwhT) + rij('Verbruik (verwacht)', s.verbr_v, null, kwhT) + rij('Kosten (verwacht)', s.kosten_v, null, eur)
+      : rij('Zon ' + (dag ? 't/m nu' : ''), s.zon_w, dag ? s.zon_v_tm : s.zon_v, kwhT) + rij('Verbruik ' + (dag ? 't/m nu' : ''), s.verbr_w, dag ? s.verbr_v_tm : s.verbr_v, kwhT)
+        + (dag ? `<div class="rij"><span>Kosten t/m nu</span><span><b>${eur(s.kosten_w)}</b> <span class="muted">/ ${eur(s.kosten_v)} verwacht hele dag</span></span></div>` : rij('Kosten', s.kosten_w, s.kosten_v, eur)))
+      + `<div class="muted" style="margin-top:4px">${dag === 2 ? 'stroomkosten incl. btw en EB, zonder vaste kosten' : 'vet = gemeten · grijs = verwacht'}</div>`;
+    const U = X.uren.filter(u => u.h.startsWith(s.datum)), ni = U.findIndex(u => u.h === X.nu_uur);
+    zonCfg.U = U; vbCfg.U = U; zonCfg.ni = vbCfg.ni = ni;
+    socCfg.U = U; socCfg.cats = U.map(u => String(u.uur)); socCfg.markeer = ni >= 0 ? ni : null;
+    socCfg.series[0].vals = U.map(u => u.soc_w); socCfg.series[1].vals = U.map(u => u.soc_p);
+    const pd = dag ? P.dagen[dag - 1] : null;
+    $('prijskaart').hidden = !(pd && pd.bekend);
+    if (dag === 2 && !(pd && pd.bekend)) { $('prijskaart').hidden = false; prCfg.R = []; $('g-pr').querySelectorAll('svg').forEach(s => s.remove()); $('prijsx').textContent = 'Prijzen voor morgen komen rond 13:00.'; }
+    else if (pd && pd.bekend) { prCfg.R = pd.kw; $('prijsx').textContent = `gemiddeld ${c1(pd.gem)} · laagste ${pd.min.t} · hoogste ${pd.max.t}`; }
+    tekenaars.forEach(f => f());
+  }
+  tekenDag();
 }
-const nuLijn = idx => ({id: "nu", afterDatasetsDraw(c) {
-  if (idx == null || idx < 0) return; const x = c.scales.x.getPixelForValue(idx), a = c.chartArea, g = c.ctx;
-  g.save(); g.strokeStyle = css("--ink2"); g.setLineDash([3, 3]); g.lineWidth = 1; g.beginPath(); g.moveTo(x, a.top); g.lineTo(x, a.bottom); g.stroke();
-  g.fillStyle = css("--ink2"); g.font = "11px system-ui"; g.fillText("nu", x + 4, a.top + 10); g.restore(); }});
-const staaf = (label, data, kl, extra = {}) => Object.assign({type: "bar", label, data, backgroundColor: css(kl), borderRadius: 3,
-  borderSkipped: "start", maxBarThickness: 14, categoryPercentage: .85, barPercentage: .9}, extra);
-const lijn = (label, data, kl, extra = {}) => Object.assign({type: "line", label, data, borderColor: css(kl), backgroundColor: css(kl),
-  borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, tension: .25, spanGaps: false}, extra);
 
-function grafieken(M) {
-  const v = M.vandaag, uNu = v.uren.indexOf(v.nu.slice(0, 2) + ":00");
-  const ov = basis({eenheid: " kWh"}); ov.scales.x.ticks.maxTicksLimit = 8;
-  new Chart($("#cVandaag"), {data: {labels: v.uren, datasets: [
-      staaf("verbruik", v.verbr_werk, "--blue"), staaf("zon", v.zon_werk, "--yellow"),
-      lijn("verbruik verwacht", v.verbr_verw, "--blue", {borderDash: [5, 4]}), lijn("zon verwacht", v.zon_verw, "--yellow", {borderDash: [5, 4]})]},
-    options: ov, plugins: [nuLijn(uNu)]});
-  const kNu = v.kw.indexOf(v.nu);
-  const os = basis({eenheid: "%", dec: 0, ydec: 0}); os.scales.y.max = 100; os.scales.x.ticks.maxTicksLimit = 8;
-  new Chart($("#cSoc"), {data: {labels: v.kw, datasets: [lijn("gemeten", v.soc_werk, "--violet"),
-      lijn("plan", v.soc_plan, "--violet", {borderDash: [5, 4]})]}, options: os, plugins: [nuLijn(kNu)]});
+// ------------------------------------------------------------------ tabblad Maand
+function toonMaand(M) {
+  const F = M.factuur, pad2 = m => String(m).padStart(2, '0');
+  const lop = F.maanden.find(x => x.stand) || F.maanden.find(x => `${x.j1}-${pad2(x.m)}` === F.lopend);
+  const s = lop && lop.stand, v = lop && lop.verw;
+  const [jj, mm] = F.lopend.split('-').map(Number), dim = new Date(jj, mm, 0).getDate();
+  if (s) {
+    let h = `<div class="l">Kosten ${lop.naam} t/m ${dat(s.tot_dag).slice(0, -5)}</div><div class="groot">${eur(s.totaal)}</div>`;
+    if (v) {
+      const pct = Math.max(0, Math.min(100, s.totaal / v.totaal * 100)), tijdp = s.dagen / dim * 100, op = pct <= tijdp + 5;
+      h += `<div class="balk"><i style="width:${pct}%"></i><b style="left:${tijdp}%"></b></div>
+        <div class="x">${nl(pct, 0)}% van de verwachte factuur (${eur(v.totaal)}) na ${s.dagen} van ${dim} dagen · <span class="${op ? 'goed' : 'slecht'}">${op ? 'op koers' : 'boven verwachting'}</span></div>`;
+    } else h += `<div class="x">incl. vaste kosten naar rato · nog geen verwachting voor deze maand vastgelegd</div>`;
+    $('m-hero').innerHTML = h;
+  } else $('m-hero').innerHTML = `<div class="l">Kosten deze maand</div><div class="x">Nog geen hele dag gemeten.</div>`;
+  const VL = M.verbruik_lopend;
+  let r = '';
+  if (v) r += `<div class="rij"><span>Verwacht ${lop.naam} ${lop.j1}</span><b>${eur(v.totaal)}</b></div>`;
+  if (lop && lop.vorig) r += `<div class="rij"><span>${lop.naam} ${lop.j0} (factuur)</span><b>${eur(lop.vorig.totaal)}</b></div>`;
+  if (v && lop.vorig) r += `<div class="rij"><span>Verschil</span><b>${verschil(lop.vorig.totaal, v.totaal)}</b></div>`;
+  if (v && lop.vorig) r += `<div class="rij"><span>Netto afname hele maand</span><b>${nl(v.afname_kwh - v.terug_kwh, 0)} kWh <span class="muted">/ ${nl(lop.vorig.afname_kwh - lop.vorig.terug_kwh, 0)} vorig jaar</span></b></div>`;
+  if (VL && VL.vorig_zelfde) r += `<div class="rij"><span>Netto afname t/m ${dat(VL.huidig.tot_dag).slice(0, -5)}</span><b>${nl(VL.huidig.netto_kwh, 0)} kWh <span class="muted">/ ${nl(VL.vorig_zelfde.netto_kwh, 0)} vorig jaar</span></b></div>
+    <div class="rij"><span>Marktprijs gemiddeld</span><b>${c1(VL.huidig.markt_ct)} <span class="muted">/ ${c1(VL.vorig_zelfde.markt_ct)}</span></b></div>`;
+  $('m-vgl').innerHTML = r || '<div class="muted">Nog geen gegevens.</div>';
+  const DK = M.maand_dagen || [];
+  const S = [{naam: 'werkelijk', kleur: '--s26', vals: DK.map(x => x.kosten_w)}, {naam: 'verwacht', kleur: '--verw', arcering: true, vals: DK.map(x => x.kosten_v)}];
+  $('leg-mk').innerHTML = S.map(s => `<span>${swatch(s)}${s.naam}</span>`).join('');
+  if (DK.length) staven({box: 'g-mk', label: 'Kosten per dag', cats: DK.map(x => String(x.dag)), series: S, hoogte: 160, fmtAs: v => '€ ' + nl(v, v % 1 ? 1 : 0),
+    tipHtml: i => { const x = DK[i]; return `<b>${x.wd} ${x.dag}</b>` + tipRij(S[0], eur(x.kosten_w)) + tipRij(S[1], eur(x.kosten_v)); }});
+  const bm = M.batterij.maand;
+  $('m-bat').innerHTML = bm ? `<div class="rij"><span>Batterij ${bm.naam.split(' ')[0]} t/m gisteren</span><b class="${bm.voordeel < 0 ? 'slecht' : 'goed'}">${eur(bm.voordeel)}</b></div>
+    <div class="rij"><span>Rendement · cycli</span><b>${bm.rendement == null ? '–' : bm.rendement + '%'} · ${nl(bm.cycli, 1)}</b></div>
+    <div class="muted">+ = levert op t.o.v. geen batterij (effectief, voor slijtage)</div>` : '<div class="muted">Nog geen hele dag gemeten.</div>';
+}
 
-  const z = M.zon, zi = z.labels.indexOf(z.dagen[1].dag + " " + v.nu.slice(0, 2) + ":00");
-  const oz = basis({eenheid: " kWh"}); oz.scales.x.stacked = true; oz.scales.y.stacked = true; oz.scales.x.ticks.autoSkip = false;
-  oz.scales.x.ticks.callback = function (i) { const l = this.getLabelForValue(i); return l.endsWith("12:00") ? dagnaam(l.slice(0, 10)) : null; };
-  oz.plugins.tooltip.callbacks.title = it => dagnaam(it[0].label.slice(0, 10)) + " " + it[0].label.slice(11);
-  new Chart($("#cZon"), {data: {labels: z.labels, datasets: [
-      staaf("verwacht oost", z.oost, "--orange", {stack: "v", borderRadius: 0, borderSkipped: false, maxBarThickness: 8, categoryPercentage: 1, barPercentage: .85}),
-      staaf("verwacht west", z.west, "--yellow", {stack: "v", maxBarThickness: 8, categoryPercentage: 1, barPercentage: .85}),
-      lijn("gemeten", z.werk, "--blue", {stack: "w", tension: .2})]}, options: oz, plugins: [nuLijn(zi)]});
-
-  const p = M.prijzen, lab = [], pr = [], bd = [];
-  p.dagen.forEach(d => { if (d.bekend) d.kw.forEach((k, i) => { lab.push(dagnaam(d.dag).slice(0, 2) + " " + k); pr.push(d.prijs[i]); bd.push(d.band[i]); }); });
-  const op = basis({eenheid: " ct", dec: 1}); op.scales.x.ticks.maxTicksLimit = 6;
-  new Chart($("#cPrijs2"), {data: {labels: lab, datasets: [staaf("EPEX", pr, "--gray",
-      {backgroundColor: bd.map(b => css(BANDKLEUR[b] || "--gray")), maxBarThickness: 4, borderRadius: 1, categoryPercentage: 1, barPercentage: 1})]},
-    options: op, plugins: [nuLijn(lab.indexOf(dagnaam(p.dagen[0].dag).slice(0, 2) + " " + v.nu))]});
-
-  const j = p.jeroen, band = css("--blue") + "33";
-  const oj = basis({eenheid: " ct", dec: 1}); oj.scales.y.beginAtZero = false; oj.scales.x.ticks.maxTicksLimit = 5;
-  oj.scales.x.ticks.callback = function (i) { return this.getLabelForValue(i).slice(0, 6); };
-  new Chart($("#cJeroen"), {data: {labels: j.labels, datasets: [
-      lijn("p10", j.p10, "--blue", {borderWidth: 0, tension: 0}),
-      lijn("p90", j.p90, "--blue", {borderWidth: 0, backgroundColor: band, fill: "-1", tension: 0}),
-      lijn("verwachting p50", j.p50, "--blue", {tension: 0}), lijn("bekend", j.bekend, "--violet", {tension: 0})]},
-    options: oj});
+// ------------------------------------------------------------------ tabblad Jaar
+function toonJaar(M) {
+  const F = M.factuur, B = M.batterij, E = F.eb;
+  $('j-titel').textContent = `Jaar ${F.label} (feb ${F.jaar} – jan ${F.jaar + 1})`;
+  $('j-hero').innerHTML = F.vgl ? `<div class="l">Facturen ${F.vgl.van} t/m ${F.vgl.tm}</div><div class="groot">${eur(F.vgl.huidig)}</div>
+    <div class="x">${F.vgl.huidig < 0 ? 'netto uitbetaald' : 'netto betaald'} · ${F.label_vorig}: ${eur(F.vgl.vorig)} → ${verschil(F.vgl.vorig, F.vgl.huidig)}</div>`
+    : `<div class="l">Facturen jaar ${F.label}</div><div class="x">Vergelijking volgt na de eerste factuur van dit jaar.</div>`;
+  const MM = F.maanden, S = [{naam: F.label_vorig, kleur: '--s25', vals: MM.map(x => x.vorig ? x.vorig.totaal : null)},
+    {naam: F.label, kleur: '--s26', vals: MM.map(x => x.huidig ? x.huidig.totaal : null)},
+    {naam: 'verwacht', kleur: '--verw', arcering: true, vals: MM.map(x => x.verw ? x.verw.totaal : null)}];
+  $('leg-jf').innerHTML = S.map(s => `<span>${swatch(s)}${s.naam}</span>`).join('');
+  staven({box: 'g-jf', label: 'Factuur per maand', cats: MM.map(x => x.naam[0]), series: S, hoogte: 190, stap: 50, fmtAs: v => (v < 0 ? '−' : '') + Math.abs(v),
+    tipHtml: i => { const x = MM[i]; let h = `<b>${x.naam}</b>`; S.forEach(s => { if (s.vals[i] != null) h += tipRij(s, eur(s.vals[i])); }); return h; }});
+  $('j-saldo').innerHTML = `<div class="rij"><span>Saldo nu (netto terug)</span><b>${nl(E.lopend ? E.lopend.saldo_nu : E.saldo_kwh, 0)} kWh</b></div>
+    <div class="rij"><span>Verwacht eind periode</span><b>${nl(E.prognose_kwh, 0)} kWh</b></div>
+    <div class="rij"><span>EB-verrekening (te betalen)</span><b>${eur(E.eur, 0)}</b></div>
+    <div class="muted">${esc(E.periode)}${E.afsluitend ? ' (afsluitend)' : ''}. Saldo positief: EB valt aan de marge weg. Vanaf 2027 geen saldering.</div>`;
+  const PR = B.prognose;
+  if (!PR) { $('j-bat').hidden = true; $('j-batg').hidden = true; return; }
+  const Y = PR.jaar;
+  $('j-bat').innerHTML = `<div class="l">Batterij eerste jaar (t/m ${dat(PR.einde)})</div><div class="groot">${eur(Y.midden, 0)}</div>
+    <div class="x"><b>schatting</b> ${eur(Y.laag, 0)} – ${eur(Y.hoog, 0)} · na slijtage ${eur(Y.na, 0)}<br>gemeten ${eur(Y.gemeten, 0)} + geschat ${eur(Y.geschat, 0)}</div>`;
+  const PD = PR.dagen, DG = B.dagen, n0 = DG.length, alle = DG.map(x => x.datum).concat(PD.map(x => x.datum));
+  const SC = [{naam: 'gemeten', kleur: '--bat', lijn: true, vals: DG.map(x => x.cum).concat(PD.map(() => null))},
+    {naam: 'geschat', kleur: '--bat', lijn: true, streep: true, vals: DG.map((x, i) => i === n0 - 1 ? x.cum : null).concat(PD.map(x => x.m))}];
+  const MNK = 'jfmamjjasond';
+  lijnen({box: 'g-jb', label: 'Batterij opgeteld', cats: alle, series: SC, hoogte: 150, markeer: n0 - 1,
+    band: {kleur: '--bat', lo: DG.map((x, i) => i === n0 - 1 ? x.cum : null).concat(PD.map(x => x.l)), hi: DG.map((x, i) => i === n0 - 1 ? x.cum : null).concat(PD.map(x => x.h))},
+    label_i: i => { const d = alle[i]; return d.slice(8) === '01' && +d.slice(5, 7) % 2 === 0 ? MNK[+d.slice(5, 7) - 1] : ''; }, fmtAs: v => '€' + v,
+    tipHtml: i => i < n0 ? `<b>${dat(DG[i].datum)}</b>` + tipRij(SC[0], eur(DG[i].cum)) : `<b>${dat(PD[i - n0].datum)}</b>` + tipRij(SC[1], eur(PD[i - n0].m))});
 }
 
 // ================================================================== hoofdlijn
 let bezig = false, laatsteStart = 0;
 async function start(handmatig) {
   if (bezig) return; bezig = true; laatsteStart = Date.now();
-  const knop = $("#bVervers"); if (knop) knop.disabled = true;
+  const knop = q("#bVervers"); if (knop) knop.disabled = true;
   const bewaard = JSON.parse(opslag.get("data") || "null");
   try {
     if (window.__TESTDATA) { toon(Object.assign({_opgehaald: new Date().toISOString()}, window.__TESTDATA)); return; }
@@ -290,14 +551,15 @@ async function start(handmatig) {
     if (e.inlog) inlogScherm("Inloggen verlopen; tik op Inloggen.");
     else if (bewaard) toon(bewaard, "Ophalen mislukt (" + e.message + "). Je ziet de laatst opgehaalde gegevens.");
     else inlogScherm(e.message);
-  } finally { bezig = false; const k = $("#bVervers"); if (k) k.disabled = false; }
+  } finally { bezig = false; const k = q("#bVervers"); if (k) k.disabled = false; }
 }
 
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible" && Date.now() - laatsteStart > 60000) start();
 });
 setInterval(() => { if (document.visibilityState === "visible") start(); }, VERVERS_MIN * 60000);
-matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { const b = JSON.parse(opslag.get("data") || "null"); if (b) toon(b); });
+let rt; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => tekenaars.forEach(f => f()), 150); });
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => tekenaars.forEach(f => f()));
 start();
 </script>
 </body>
