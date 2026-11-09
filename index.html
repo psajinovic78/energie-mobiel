@@ -84,7 +84,7 @@ table.d0 td.d0c{vertical-align:top;white-space:normal}table.d0 td.d0c .x{color:v
 .kop{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;align-items:baseline;margin-bottom:14px}
 
 body{font-size:15px}
-:root{--warnbg:#fdf3dc;--zon-o:#f7cf6b;--zon-w:#eea03a;--zon-g:#9a3412;--vb-v:#bcd5f5;--vb-g:#1d4f9e;--p-laag:#1baf7a;--p-hoog:#d03b3b}@media (prefers-color-scheme:dark){:root{--warnbg:#3a2c0a;--zon-o:#7a5c16;--zon-w:#a8621c;--zon-g:#ffd58a;--vb-v:#26466c;--vb-g:#8cc0ff;--p-laag:#199e70;--p-hoog:#e66767}}
+:root{--bat-v:#bfe8d6;--k-v:#d9d5f7;--warnbg:#fdf3dc;--zon-o:#f7cf6b;--zon-w:#eea03a;--zon-g:#9a3412;--vb-v:#bcd5f5;--vb-g:#1d4f9e;--p-laag:#1baf7a;--p-hoog:#d03b3b}@media (prefers-color-scheme:dark){:root{--bat-v:#1d4a3a;--k-v:#2f2a5c;--warnbg:#3a2c0a;--zon-o:#7a5c16;--zon-w:#a8621c;--zon-g:#ffd58a;--vb-v:#26466c;--vb-g:#8cc0ff;--p-laag:#199e70;--p-hoog:#e66767}}
 main{max-width:480px;padding:0 14px 90px}
 .top{position:sticky;top:0;z-index:5;background:var(--page);padding:12px 0 8px;display:flex;justify-content:space-between;align-items:baseline}
 .top h1{font-size:20px}
@@ -124,6 +124,8 @@ button:disabled{opacity:.5}
 .banner.warn{background:var(--warnbg)}.banner.crit{background:var(--critbg)}
 .midden{text-align:center;padding:48px 8px}.midden p{color:var(--ink2);margin:0 0 20px}
 .tip{min-width:170px}
+.rij2{border-bottom:1px solid var(--grid);padding:5px 0}.rij2 .rij{border:0;padding:0}.rij small{display:block;font-size:11px;color:var(--muted)}
+.del{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
 </style>
 </head>
 <body>
@@ -322,43 +324,45 @@ function kiesTab(t) {
   tekenaars.forEach(f => f()); scrollTo(0, 0);
 }
 
-// combinatiegrafiek: verwacht als (gestapelde) balken, gemeten als lijn op de voorgrond
-function combo(cfg) {
-  const box = $(cfg.box), tip = box.querySelector('.tip');
-  const teken = () => {
-    const U = cfg.U || []; if (!U.length) return;
-    const [svg, W, H] = kader(box, cfg.label, 170), L = 34, R = 6, TP = 8, Bm = 20, n = U.length;
-    const tops = U.map(u => cfg.balken.reduce((a, b) => a + (u[b.k] || 0), 0)), lijn = U.map(u => u[cfg.lijn.k]);
-    const mx = Math.max(0.1, ...tops, ...lijn.filter(v => v != null)), stap = stapVan([0, mx]), hi = Math.ceil(mx / stap) * stap;
-    const y = v => TP + (hi - v) / hi * (H - TP - Bm), gw = (W - L - R) / n, x = i => L + gw * i + gw / 2;
-    asSchaal(svg, W, 0, hi, stap, y, L, R, v => v === 0 || Number.isInteger(v) ? String(v) : nl(v, Number.isInteger(Math.round(v * 1000) / 100) ? 1 : 2));
-    U.forEach((u, i) => {
-      let b0 = 0;
-      cfg.balken.forEach(b => { const v = u[b.k] || 0; if (v <= 0) return;
-        el('rect', {x: L + gw * i + gw * 0.12, y: y(b0 + v), width: gw * 0.76, height: y(b0) - y(b0 + v), fill: css(b.kleur)}, svg); b0 += v; });
-      if (u.uur % 6 === 0) { const t = el('text', {x: x(i), y: H - 5, 'text-anchor': 'middle'}, svg); t.textContent = u.uur + 'u'; }
-    });
-    if (cfg.ni != null && cfg.ni >= 0) el('line', {x1: x(cfg.ni), x2: x(cfg.ni), y1: TP - 3, y2: H - Bm, stroke: css('--ink'), 'stroke-width': 1, 'stroke-dasharray': '2 3'}, svg);
-    let d = ''; lijn.forEach((v, i) => { if (v == null) { d += ' '; return; } d += (d === '' || d.endsWith(' ') ? 'M' : 'L') + x(i) + ',' + y(v); });
-    d = d.replace(/ +/g, ' ').trim();
-    if (d) {
-      el('path', {d, fill: 'none', stroke: css('--surface'), 'stroke-width': 5, 'stroke-linejoin': 'round', 'stroke-linecap': 'round'}, svg);
-      el('path', {d, fill: 'none', stroke: css(cfg.lijn.kleur), 'stroke-width': 2.5, 'stroke-linejoin': 'round', 'stroke-linecap': 'round'}, svg);
-      lijn.forEach((v, i) => { if (v != null) el('circle', {cx: x(i), cy: y(v), r: 2.6, fill: css(cfg.lijn.kleur), stroke: css('--surface'), 'stroke-width': 1.2}, svg); });
-    }
-    U.forEach((u, i) => {
-      const hit = el('rect', {x: L + gw * i, y: 0, width: gw, height: H, fill: 'transparent'}, svg);
-      hit.addEventListener('mousemove', ev => {
-        let h = `<b>${u.uur}:00–${u.uur + 1}:00</b>` + tipRij(cfg.lijn, u[cfg.lijn.k] == null ? '–' : nl(u[cfg.lijn.k], 2) + ' kWh');
-        cfg.balken.forEach(b => h += tipRij(b, u[b.k] == null ? '–' : nl(u[b.k], 2) + ' kWh'));
-        plaatsTip(box, tip, ev, h);
-      });
-      hit.addEventListener('mouseleave', () => tip.style.display = 'none');
-    });
-  };
-  tekenaars.push(teken); return cfg;
-}
-const legCombo = c => [...c.balken, c.lijn].map(s => `<span>${s === c.lijn ? `<i class="sl" style="border-top:3px solid var(${s.kleur})"></i>` : `<i class="sw" style="background:var(${s.kleur})"></i>`}${s.naam}</span>`).join('');
+// combinatiegrafiek: verwacht als (gestapelde) balken, bandbreedte als vlak, gemeten als lijn op de voorgrond (9-11-2026)
+// cfg {box,label,U,balken[{k,naam,kleur}],lijn{k,naam,kleur},band{lo,hi,kleur}|null,ni,hoogte,fmt(v),fmtAs(v),labelI(i,gw),scheiding[],tipKop(i),extra(i),plafond}
+function combo(cfg){
+  const box=$(cfg.box),tip=box.querySelector('.tip');
+  const teken=()=>{
+    const U=cfg.U||[];box.querySelectorAll('svg').forEach(s=>s.remove());if(!U.length)return;
+    const [svg,W,H]=kader(box,cfg.label,cfg.hoogte||200),L=cfg.L||44,R=6,TP=8,Bm=20,n=U.length;
+    const top=U.map(u=>cfg.balken.reduce((a,b)=>a+(u[b.k]||0),0)),alle=[...top];
+    U.forEach(u=>{[cfg.lijn.k,cfg.band&&cfg.band.lo,cfg.band&&cfg.band.hi].forEach(k=>{if(k&&u[k]!=null)alle.push(u[k])})});
+    if(cfg.plafond)alle.push(cfg.plafond);
+    const stap=cfg.stap||stapVan(alle),[lo,hi]=bereik(alle,stap),y=v=>TP+(hi-v)/(hi-lo||1)*(H-TP-Bm),gw=(W-L-R)/n,x=i=>L+gw*i+gw/2;
+    asSchaal(svg,W,lo,hi,stap,y,L,R,cfg.fmtAs||(v=>v===0||Number.isInteger(v)?String(v):nl(v,Number.isInteger(Math.round(v*1000)/100)?1:2)));
+    (cfg.scheiding||[]).forEach(i=>el('line',{x1:L+gw*i,x2:L+gw*i,y1:TP,y2:H-Bm,stroke:css('--axis'),'stroke-width':1,'stroke-dasharray':'3 3'},svg));
+    if(cfg.band){let p='';const st=[];
+      const vlak=()=>{if(st.length>1)p+='M'+st.map(s=>x(s[0])+','+y(s[1])).join('L')+'L'+st.slice().reverse().map(s=>x(s[0])+','+y(s[2])).join('L')+'Z';st.length=0};
+      U.forEach((u,i)=>{if(u[cfg.band.lo]==null||u[cfg.band.hi]==null||(cfg.scheiding||[]).includes(i))vlak();if(u[cfg.band.lo]!=null&&u[cfg.band.hi]!=null)st.push([i,u[cfg.band.lo],u[cfg.band.hi]])});vlak();
+      if(p)el('path',{d:p,fill:css(cfg.band.kleur),'fill-opacity':0.2,stroke:'none'},svg)}
+    U.forEach((u,i)=>{let b0=0,b1=0;
+      cfg.balken.forEach(b=>{const v=u[b.k];if(!v)return;const a=v>0?b0:b1,e=a+v;
+        el('rect',{x:L+gw*i+gw*0.12,y:Math.min(y(a),y(e)),width:Math.max(gw*0.76,0.8),height:Math.abs(y(a)-y(e)),fill:css(b.kleur)},svg);if(v>0)b0=e;else b1=e});
+      const t=cfg.labelI?cfg.labelI(i,gw):'';if(t){const tt=el('text',{x:x(i),y:H-5,'text-anchor':'middle'},svg);tt.textContent=t}});
+    if(cfg.ni!=null&&cfg.ni>=0)el('line',{x1:L+gw*cfg.ni,x2:L+gw*cfg.ni,y1:TP-3,y2:H-Bm,stroke:css('--ink'),'stroke-width':1,'stroke-dasharray':'2 3'},svg);
+    let d='';U.forEach((u,i)=>{const v=u[cfg.lijn.k];if(v==null||(cfg.scheiding||[]).includes(i)&&d){d+=' ';}if(v==null)return;d+=(d===''||d.endsWith(' ')?'M':'L')+x(i)+','+y(v)});
+    d=d.replace(/ +/g,' ').trim();
+    if(d){el('path',{d,fill:'none',stroke:css('--surface'),'stroke-width':5,'stroke-linejoin':'round','stroke-linecap':'round'},svg);
+      el('path',{d,fill:'none',stroke:css(cfg.lijn.kleur),'stroke-width':2.5,'stroke-linejoin':'round','stroke-linecap':'round'},svg);
+      if(n<=48)U.forEach((u,i)=>{const v=u[cfg.lijn.k];if(v!=null)el('circle',{cx:x(i),cy:y(v),r:2.4,fill:css(cfg.lijn.kleur),stroke:css('--surface'),'stroke-width':1.2},svg)})}
+    const kruis=el('line',{y1:TP,y2:H-Bm,stroke:css('--axis'),visibility:'hidden'},svg);
+    U.forEach((u,i)=>{const hit=el('rect',{x:L+gw*i,y:0,width:gw,height:H,fill:'transparent'},svg);
+      hit.addEventListener('mousemove',ev=>{kruis.setAttribute('x1',x(i));kruis.setAttribute('x2',x(i));kruis.setAttribute('visibility','visible');
+        const f=cfg.fmt||(v=>nl(v,2)),w=v=>v==null?'–':f(v);
+        let h=`<b>${cfg.tipKop?cfg.tipKop(i):i}</b>`+tipRij(cfg.lijn,w(u[cfg.lijn.k]));
+        cfg.balken.forEach(b=>h+=tipRij(b,w(u[b.k])));
+        if(cfg.band&&u[cfg.band.lo]!=null)h+=`<div class="r muted"><span>${cfg.band.naam||'bandbreedte'}</span><span>${f(u[cfg.band.lo])} – ${f(u[cfg.band.hi])}</span></div>`;
+        plaatsTip(box,tip,ev,h+(cfg.extra?cfg.extra(i):''))});
+      hit.addEventListener('mouseleave',()=>{tip.style.display='none';kruis.setAttribute('visibility','hidden')})})};
+  tekenaars.push(teken);teken();return cfg}
+const legCombo=c=>[...c.balken,c.lijn].map(s=>`<span>${s===c.lijn?`<i class="sl" style="border-top:3px solid var(${s.kleur})"></i>`:`<i class="sw" style="background:var(${s.kleur})"></i>`}${s.naam}</span>`).join('')
+  +(c.band?`<span><i class="sw" style="background:var(${c.band.kleur});opacity:.3"></i>${c.band.naam||'bandbreedte'}</span>`:'');
 
 function toon(M, opmerking) {
   tekenaars.length = 0;
@@ -379,8 +383,9 @@ function toon(M, opmerking) {
    <div class="seg" id="seg"></div>
    <div class="card"><div id="dagcijfers"></div></div>
    <div class="card"><h3>Zon per uur (kWh)</h3><div class="legenda" id="leg-zon"></div><div class="grafiek" id="g-zon"><div class="tip"></div></div></div>
-   <div class="card"><h3>Huisverbruik per uur (kWh)</h3><div class="legenda" id="leg-vb"></div><div class="grafiek" id="g-vb"><div class="tip"></div></div></div>
-   <div class="card"><h3>Laadtoestand batterij (%)</h3><div class="legenda"><span><i class="sl" style="border-top:2px solid var(--bat)"></i>gemeten</span><span><i class="sl" style="border-top:2px dashed var(--bat)"></i>plan dagadvies</span></div><div class="grafiek" id="g-soc"><div class="tip"></div></div></div>
+   <div class="card"><h3>Netto verbruik opgeteld (kWh)</h3><div class="legenda" id="leg-netto"></div><div class="grafiek" id="g-netto"><div class="tip"></div></div></div>
+   <div class="card"><h3>Kosten opgeteld (€)</h3><div class="legenda" id="leg-kost"></div><div class="grafiek" id="g-kost"><div class="tip"></div></div></div>
+   <div class="card"><h3>Laadtoestand batterij (%)</h3><div class="legenda" id="leg-soc"></div><div class="grafiek" id="g-soc"><div class="tip"></div></div></div>
    <div class="card" id="prijskaart"><h3>Prijs per kwartier</h3><div class="legenda" id="leg-pr"></div><div class="grafiek" id="g-pr"><div class="tip"></div></div><div class="x" id="prijsx"></div></div>
   </section>
   <section id="t-maand" hidden>
@@ -407,7 +412,7 @@ function toon(M, opmerking) {
   kiesTab(tab);
 }
 
-// ------------------------------------------------------------------ tabblad Dagen
+// ------------------------------------------------------------------ tabblad Dagen (9-11-2026: stromen, opgeteld netto en kosten)
 function toonDagen(M) {
   const X = M.drie, P = M.prijzen, vd = X.dagen[1];
   const nu = P.dagen[0] && P.dagen[0].bekend ? P.dagen[0].kw.find(x => x.nu) : null;
@@ -416,52 +421,71 @@ function toonDagen(M) {
    <div class="kpi"><div class="l">Batterij</div><div class="w">${vd.soc_nu == null ? '–' : nl(vd.soc_nu, 0)}<small>%</small></div><div class="x">plan eind dag ${vd.soc_plan_eind == null ? '–' : nl(vd.soc_plan_eind, 0) + '%'}</div></div>
    <div class="kpi"><div class="l">Zon vandaag</div><div class="w">${k1(vd.zon_w)}<small> kWh</small></div><div class="x">verwacht ${k1(vd.zon_v)}</div></div>`;
   $('seg').innerHTML = ['Gisteren', 'Vandaag', 'Morgen'].map((n, i) => `<button data-i="${i}">${n}</button>`).join('');
-  $('seg').querySelectorAll('button').forEach(b => b.addEventListener('click', () => { dag = +b.dataset.i; tekenDag(); }));
-  const S2 = [{naam: 'gemeten', kleur: '--bat', lijn: true}, {naam: 'plan', kleur: '--bat', lijn: true, streep: true}];
-  const zonCfg = combo({box: 'g-zon', label: 'Zon per uur', balken: [{k: 'zon_vo', naam: 'verwacht oost', kleur: '--zon-o'}, {k: 'zon_vw', naam: 'verwacht west', kleur: '--zon-w'}], lijn: {k: 'zon_w', naam: 'gemeten', kleur: '--zon-g'}});
-  const vbCfg = combo({box: 'g-vb', label: 'Verbruik per uur', balken: [{k: 'verbr_v', naam: 'verwacht', kleur: '--vb-v'}], lijn: {k: 'verbr_w', naam: 'gemeten', kleur: '--vb-g'}});
-  $('leg-zon').innerHTML = legCombo(zonCfg); $('leg-vb').innerHTML = legCombo(vbCfg);
-  const socCfg = {geenPunten: true, box: 'g-soc', label: 'Laadtoestand', cats: [], series: S2.map(s => ({...s, vals: []})), hoogte: 140, vanNul: true, stap: 50, fmtAs: v => v + '%',
-    label_i: i => ['0', '6', '12', '18'].includes(socCfg.cats[i]) ? socCfg.cats[i] + 'u' : '',
-    tipHtml: i => { const u = socCfg.U[i]; return `<b>${u.uur}:00</b>` + tipRij(socCfg.series[0], u.soc_w == null ? '–' : u.soc_w + '%') + tipRij(socCfg.series[1], u.soc_p == null ? '–' : u.soc_p + '%'); }};
-  const prCfg = {R: []};
+  $('seg').querySelectorAll('button').forEach(b => b.addEventListener('click', () => { dag = +b.dataset.i; opslag.set('dag', dag); tekenDag(); }));
+  const kop = u => `${u.uur}:00–${u.uur + 1}:00`, kopT = u => `t/m ${u.uur + 1}:00`;
+  const lab = i => { const u = cz.U[i]; return u && u.uur % 6 === 0 ? u.uur + 'u' : ''; };
+  const cz = combo({box: 'g-zon', label: 'Zon per uur', U: [], balken: [{k: 'zon_vo', naam: 'verwacht oost', kleur: '--zon-o'}, {k: 'zon_vw', naam: 'verwacht west', kleur: '--zon-w'}],
+    lijn: {k: 'zon_w', naam: 'gemeten', kleur: '--zon-g'}, hoogte: 170, L: 34, labelI: lab, fmt: v => nl(v, 2) + ' kWh', tipKop: i => kop(cz.U[i])});
+  const cn = combo({box: 'g-netto', label: 'Netto verbruik opgeteld', U: [], balken: [{k: 'cn_v', naam: 'verwacht', kleur: '--vb-v'}], lijn: {k: 'cn_w', naam: 'gemeten', kleur: '--vb-g'},
+    band: {lo: 'cn_lo', hi: 'cn_hi', kleur: '--vb-g', naam: 'zonnig – somber'}, hoogte: 170, L: 34, labelI: lab, fmt: v => nl(v, 1) + ' kWh', tipKop: i => kopT(cn.U[i])});
+  const ck = combo({box: 'g-kost', label: 'Kosten opgeteld', U: [], balken: [{k: 'ck_v', naam: 'verwacht', kleur: '--k-v'}], lijn: {k: 'ck_w', naam: 'gemeten', kleur: '--kw'},
+    band: {lo: 'ck_lo', hi: 'ck_hi', kleur: '--kw', naam: 'zonnig – somber'}, hoogte: 170, L: 38, labelI: lab, fmt: eur, fmtAs: v => (v < 0 ? '−' : '') + '€' + nl(Math.abs(v), v % 1 ? 1 : 0), tipKop: i => kopT(ck.U[i])});
+  const cs = combo({box: 'g-soc', label: 'Laadtoestand', U: [], balken: [{k: 'soc_p', naam: 'plan dagadvies', kleur: '--bat-v'}], lijn: {k: 'soc_w', naam: 'gemeten', kleur: '--bat'},
+    hoogte: 140, L: 38, stap: 50, plafond: 100, labelI: lab, fmt: v => nl(v, 0) + '%', fmtAs: v => v + '%', tipKop: i => cs.U[i].uur + ':00'});
+  $('leg-zon').innerHTML = legCombo(cz); $('leg-netto').innerHTML = legCombo(cn); $('leg-kost').innerHTML = legCombo(ck); $('leg-soc').innerHTML = legCombo(cs);
+  const prCfg = {R: [], V: null};
   (function () {
     const box = $('g-pr'), tip = box.querySelector('.tip');
     function t() {
-      const R = prCfg.R; if (!R.length) return;
+      box.querySelectorAll('svg').forEach(s => s.remove());
+      const R = prCfg.V ? prCfg.V.kw : prCfg.R; if (!R.length) return;
+      const vals = prCfg.V ? R.flatMap(x => [x.p10, x.p90]) : R.map(x => x.p);
       const [svg, W, H] = kader(box, 'Prijs per kwartier', 150), L = 34, Rm = 4, TP = 8, Bm = 20, n = R.length;
-      const stap = stapVan(R.map(x => x.p)), [lo, hi] = bereik(R.map(x => x.p), stap), y = v => TP + (hi - v) / (hi - lo) * (H - TP - Bm), bw = (W - L - Rm) / n;
+      const stap = stapVan(vals), [lo, hi] = bereik(vals, stap), y = v => TP + (hi - v) / (hi - lo) * (H - TP - Bm), bw = (W - L - Rm) / n, xm = i => L + i * bw + bw / 2;
       asSchaal(svg, W, lo, hi, stap, y, L, Rm, v => String(v));
+      if (prCfg.V) {
+        el('path', {d: 'M' + R.map((x, i) => xm(i) + ',' + y(x.p90)).join('L') + 'L' + R.map((x, i) => xm(i) + ',' + y(x.p10)).reverse().join('L') + 'Z', fill: css('--verw'), 'fill-opacity': 0.2}, svg);
+        el('path', {d: 'M' + R.map((x, i) => xm(i) + ',' + y(x.p50)).join('L'), fill: 'none', stroke: css('--verw'), 'stroke-width': 2, 'stroke-dasharray': '5 4'}, svg);
+      }
       R.forEach((x, i) => {
-        el('rect', {x: L + i * bw + 0.2, y: Math.min(y(x.p), y(0)), width: Math.max(bw - 0.4, 0.8), height: Math.abs(y(0) - y(x.p)), fill: css(KL[x.b] || '--s25')}, svg);
+        if (!prCfg.V) el('rect', {x: L + i * bw + 0.2, y: Math.min(y(x.p), y(0)), width: Math.max(bw - 0.4, 0.8), height: Math.abs(y(0) - y(x.p)), fill: css(KL[x.b] || '--s25')}, svg);
         if (x.t.endsWith(':00') && +x.t.slice(0, 2) % 6 === 0) { const tt = el('text', {x: L + i * bw, y: H - 5, 'text-anchor': 'middle'}, svg); tt.textContent = x.t.slice(0, 2) + 'u'; }
         if (x.nu) el('line', {x1: L + i * bw, x2: L + i * bw, y1: TP - 3, y2: H - Bm, stroke: css('--ink'), 'stroke-width': 1.5}, svg);
         const hit = el('rect', {x: L + i * bw, y: 0, width: bw, height: H, fill: 'transparent'}, svg);
-        hit.addEventListener('mousemove', ev => plaatsTip(box, tip, ev, `<b>${x.t}</b>${tipRij(null, c1(x.p) + ' · ' + x.b)}`));
+        hit.addEventListener('mousemove', ev => plaatsTip(box, tip, ev, prCfg.V ? `<b>${x.t} · verwachting</b>${tipRij(null, 'p50 ' + c1(x.p50))}<div class="r muted"><span>p10 – p90</span><span>${c1(x.p10)} – ${c1(x.p90)}</span></div>` : `<b>${x.t}</b>${tipRij(null, c1(x.p) + ' · ' + x.b)}`));
         hit.addEventListener('mouseleave', () => tip.style.display = 'none');
       });
     }
     tekenaars.push(t);
   })();
-  $('leg-pr').innerHTML = ['laag', 'regulier', 'hoog'].map(b => `<span><i class="sw" style="background:var(${KL[b]})"></i>${b}</span>`).join('') + `<span class="muted">ct/kWh incl. btw en EB</span>`;
-  lijnen(socCfg);
+  const kw = v => v == null ? '–' : nl(v, 1);
+  const DEL = {totaal: [['afname', 'van net'], ['van_zb', 'van zon + batterij']], terug: [['zon_net', 'zon'], ['bat_net', 'batterij']], zon: [['zon_huis', 'huis'], ['zon_bat', 'batterij'], ['zon_naar_net', 'net']]};
+  const tot = (S, k) => !S ? null : k === 'netto' ? S.afname - S.terug : S[k];
+  function rij(s, naam, k, onder) {
+    const W = s.stroom_w, V = s.stroom_v, f = k === 'kosten' ? eur : (v => v == null ? '–' : nl(v, 1) + ' kWh');
+    const del = S => k in DEL && S ? `<div class="del">${DEL[k].map(([c, n]) => `${n} ${kw(S[c])}`).join(' · ')}${dag === 2 || !W ? ' (verwacht)' : ''}</div>` : '';
+    let r;
+    if (dag === 2 || !W) r = `<span><b>${f(tot(V, k))}</b> <span class="muted">verwacht</span></span>`;
+    else r = `<span><b>${f(tot(W, k))}</b>${V ? ` <span class="muted">/ ${f(tot(V, k))}${dag === 1 ? ' hele dag' : ''}</span>` : ''}</span>`;
+    return `<div class="rij2"><div class="rij"><span>${naam}<small>${onder}</small></span>${r}</div>${del(dag === 2 || !W ? V : W)}</div>`;
+  }
   function tekenDag() {
     $('seg').querySelectorAll('button').forEach(b => b.classList.toggle('akt', +b.dataset.i === dag));
-    const s = X.dagen[dag];
-    const rij = (n, w, v, f) => `<div class="rij"><span>${n}</span><span><b>${w == null ? '–' : f(w)}</b>${v != null ? ` <span class="muted">/ ${f(v)}</span>` : ''}</span></div>`;
-    $('dagcijfers').innerHTML = (dag === 2
-      ? rij('Zon (verwacht)', s.zon_v, null, kwhT) + rij('Verbruik (verwacht)', s.verbr_v, null, kwhT) + rij('Kosten (verwacht)', s.kosten_v, null, eur)
-      : rij('Zon ' + (dag ? 't/m nu' : ''), s.zon_w, dag ? s.zon_v_tm : s.zon_v, kwhT) + rij('Verbruik ' + (dag ? 't/m nu' : ''), s.verbr_w, dag ? s.verbr_v_tm : s.verbr_v, kwhT)
-        + (dag ? `<div class="rij"><span>Kosten t/m nu</span><span><b>${eur(s.kosten_w)}</b> <span class="muted">/ ${eur(s.kosten_v)} verwacht hele dag</span></span></div>` : rij('Kosten', s.kosten_w, s.kosten_v, eur)))
-      + `<div class="muted" style="margin-top:4px">${dag === 2 ? 'stroomkosten incl. btw en EB, zonder vaste kosten' : 'vet = gemeten · grijs = verwacht'}</div>`;
+    const s = X.dagen[dag], W = s.stroom_w;
+    $('dagcijfers').innerHTML = rij(s, 'Afname totaal', 'totaal', 'huis + batterij laden') + rij(s, 'Teruglevering', 'terug', 'aan het net') + rij(s, 'Zon', 'zon', 'productie')
+      + rij(s, 'Netto', 'netto', 'afname − terug') + rij(s, 'Kosten', 'kosten', 'stroom incl. btw en EB')
+      + `<div class="muted" style="margin-top:6px">${dag === 2 ? 'Verwachting van dagadvies' + (s.band ? ` · somber–zonnig: netto ${kw(s.band.netto[1])} – ${kw(s.band.netto[0])} kWh, kosten ${eur(s.band.kosten[1])} – ${eur(s.band.kosten[0])}` : '')
+        : (dag === 1 && W ? `vet = gemeten t/m ${W.uren} uur · grijs = verwacht` : 'vet = gemeten · grijs = verwacht')}</div>`;
     const U = X.uren.filter(u => u.h.startsWith(s.datum)), ni = U.findIndex(u => u.h === X.nu_uur);
-    zonCfg.U = U; vbCfg.U = U; zonCfg.ni = vbCfg.ni = ni;
-    socCfg.U = U; socCfg.cats = U.map(u => String(u.uur)); socCfg.markeer = ni >= 0 ? ni : null;
-    socCfg.series[0].vals = U.map(u => u.soc_w); socCfg.series[1].vals = U.map(u => u.soc_p);
+    [cz, cn, ck, cs].forEach(c => { c.U = U; c.ni = ni; });
     const pd = dag ? P.dagen[dag - 1] : null;
-    $('prijskaart').hidden = !(pd && pd.bekend);
-    if (dag === 2 && !(pd && pd.bekend)) { $('prijskaart').hidden = false; prCfg.R = []; $('g-pr').querySelectorAll('svg').forEach(s => s.remove()); $('prijsx').textContent = 'Prijzen voor morgen komen rond 13:00.'; }
-    else if (pd && pd.bekend) { prCfg.R = pd.kw; $('prijsx').textContent = `gemiddeld ${c1(pd.gem)} · laagste ${pd.min.t} · hoogste ${pd.max.t}`; }
+    $('prijskaart').hidden = !pd || !(pd.bekend || pd.verw || dag === 2);
+    prCfg.R = []; prCfg.V = null;
+    if (pd && pd.bekend) { prCfg.R = pd.kw; $('prijsx').textContent = `gemiddeld ${c1(pd.gem)} · laagste ${pd.min.t} · hoogste ${pd.max.t}`; }
+    else if (pd && pd.verw) { prCfg.V = pd.verw; $('prijsx').textContent = `Nog niet bekend (rond 13:00). Verwachting jeroen.nl: gemiddeld ${c1(pd.verw.gem)}; lijn p50, band p10–p90.`; }
+    else if (dag === 2) $('prijsx').textContent = 'Prijzen voor morgen komen rond 13:00.';
+    $('leg-pr').innerHTML = prCfg.V ? `<span><i class="sl" style="border-top:2px dashed var(--verw)"></i>verwachting p50</span><span><i class="sw" style="background:var(--verw);opacity:.3"></i>p10 – p90</span><span class="muted">ct/kWh incl. btw en EB</span>`
+      : ['laag', 'regulier', 'hoog'].map(b => `<span><i class="sw" style="background:var(${KL[b]})"></i>${b}</span>`).join('') + `<span class="muted">ct/kWh incl. btw en EB</span>`;
     tekenaars.forEach(f => f());
   }
   tekenDag();
