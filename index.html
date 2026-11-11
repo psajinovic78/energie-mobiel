@@ -332,7 +332,7 @@ function combo(cfg){
     const U=cfg.U||[];box.querySelectorAll('svg').forEach(s=>s.remove());if(!U.length)return;
     const [svg,W,H]=kader(box,cfg.label,cfg.hoogte||200),L=cfg.L||44,R=6,TP=8,Bm=20,n=U.length;
     const top=U.map(u=>cfg.balken.reduce((a,b)=>a+(u[b.k]||0),0)),alle=[...top];
-    U.forEach(u=>{[cfg.lijn.k,cfg.band&&cfg.band.lo,cfg.band&&cfg.band.hi].forEach(k=>{if(k&&u[k]!=null)alle.push(u[k])})});
+    U.forEach(u=>{[cfg.lijn.k,cfg.lijn2&&cfg.lijn2.k,cfg.band&&cfg.band.lo,cfg.band&&cfg.band.hi].forEach(k=>{if(k&&u[k]!=null)alle.push(u[k])})});
     if(cfg.plafond)alle.push(cfg.plafond);
     const stap=cfg.stap||stapVan(alle),[lo,hi]=bereik(alle,stap),y=v=>TP+(hi-v)/(hi-lo||1)*(H-TP-Bm),gw=(W-L-R)/n,x=i=>L+gw*i+gw/2;
     asSchaal(svg,W,lo,hi,stap,y,L,R,cfg.fmtAs||(v=>v===0||Number.isInteger(v)?String(v):nl(v,Number.isInteger(Math.round(v*1000)/100)?1:2)));
@@ -351,17 +351,19 @@ function combo(cfg){
     if(d){el('path',{d,fill:'none',stroke:css('--surface'),'stroke-width':5,'stroke-linejoin':'round','stroke-linecap':'round'},svg);
       el('path',{d,fill:'none',stroke:css(cfg.lijn.kleur),'stroke-width':2.5,'stroke-linejoin':'round','stroke-linecap':'round'},svg);
       if(n<=48)U.forEach((u,i)=>{const v=u[cfg.lijn.k];if(v!=null)el('circle',{cx:x(i),cy:y(v),r:2.4,fill:css(cfg.lijn.kleur),stroke:css('--surface'),'stroke-width':1.2},svg)})}
+    if(cfg.lijn2){let d2='';U.forEach((u,i)=>{const v=u[cfg.lijn2.k];if(v==null||(cfg.scheiding||[]).includes(i)&&d2){d2+=' ';}if(v==null)return;d2+=(d2===''||d2.endsWith(' ')?'M':'L')+x(i)+','+y(v)});
+      d2=d2.replace(/ +/g,' ').trim();if(d2)el('path',{d:d2,fill:'none',stroke:css(cfg.lijn2.kleur),'stroke-width':2,'stroke-dasharray':'5 3','stroke-linejoin':'round'},svg)}
     const kruis=el('line',{y1:TP,y2:H-Bm,stroke:css('--axis'),visibility:'hidden'},svg);
     U.forEach((u,i)=>{const hit=el('rect',{x:L+gw*i,y:0,width:gw,height:H,fill:'transparent'},svg);
       hit.addEventListener('mousemove',ev=>{kruis.setAttribute('x1',x(i));kruis.setAttribute('x2',x(i));kruis.setAttribute('visibility','visible');
         const f=cfg.fmt||(v=>nl(v,2)),w=v=>v==null?'–':f(v);
-        let h=`<b>${cfg.tipKop?cfg.tipKop(i):i}</b>`+tipRij(cfg.lijn,w(u[cfg.lijn.k]));
+        let h=`<b>${cfg.tipKop?cfg.tipKop(i):i}</b>`+tipRij(cfg.lijn,w(u[cfg.lijn.k]))+(cfg.lijn2&&u[cfg.lijn2.k]!=null?tipRij(cfg.lijn2,w(u[cfg.lijn2.k])):'');
         cfg.balken.forEach(b=>h+=tipRij(b,w(u[b.k])));
         if(cfg.band&&u[cfg.band.lo]!=null)h+=`<div class="r muted"><span>${cfg.band.naam||'bandbreedte'}</span><span>${f(u[cfg.band.lo])} – ${f(u[cfg.band.hi])}</span></div>`;
         plaatsTip(box,tip,ev,h+(cfg.extra?cfg.extra(i):''))});
       hit.addEventListener('mouseleave',()=>{tip.style.display='none';kruis.setAttribute('visibility','hidden')})})};
   tekenaars.push(teken);teken();return cfg}
-const legCombo=c=>[...c.balken,c.lijn].map(s=>`<span>${s===c.lijn?`<i class="sl" style="border-top:3px solid var(${s.kleur})"></i>`:`<i class="sw" style="background:var(${s.kleur})"></i>`}${s.naam}</span>`).join('')
+const legCombo=c=>[...c.balken,c.lijn,...(c.lijn2?[c.lijn2]:[])].map(s=>`<span>${s===c.lijn2?`<i class="sl" style="border-top:2px dashed var(${s.kleur})"></i>`:s===c.lijn?`<i class="sl" style="border-top:3px solid var(${s.kleur})"></i>`:`<i class="sw" style="background:var(${s.kleur})"></i>`}${s.naam}</span>`).join('')
   +(c.band?`<span><i class="sw" style="background:var(${c.band.kleur});opacity:.3"></i>${c.band.naam||'bandbreedte'}</span>`:'');
 
 function toon(M, opmerking) {
@@ -419,13 +421,13 @@ function toonDagen(M) {
   $('hero1').innerHTML = `
    <div class="kpi"><div class="l">Prijs nu</div><div class="w">${nu ? nl(nu.p, 1) : '–'}<small> ct</small></div><div class="x">${nu ? 'band ' + nu.b : ''}</div></div>
    <div class="kpi"><div class="l">Batterij</div><div class="w">${vd.soc_nu == null ? '–' : nl(vd.soc_nu, 0)}<small>%</small></div><div class="x">plan eind dag ${vd.soc_plan_eind == null ? '–' : nl(vd.soc_plan_eind, 0) + '%'}</div></div>
-   <div class="kpi"><div class="l">Zon vandaag</div><div class="w">${k1(vd.zon_w)}<small> kWh</small></div><div class="x">verwacht ${k1(vd.zon_v)}</div></div>`;
+   <div class="kpi"><div class="l">Zon vandaag</div><div class="w">${k1(vd.zon_w)}<small> kWh</small></div><div class="x">verwacht ${k1(vd.zon_v)}${vd.zon_n != null ? ' · nieuwste ' + k1(vd.zon_n) : ''}</div></div>`;
   $('seg').innerHTML = ['Gisteren', 'Vandaag', 'Morgen'].map((n, i) => `<button data-i="${i}">${n}</button>`).join('');
   $('seg').querySelectorAll('button').forEach(b => b.addEventListener('click', () => { dag = +b.dataset.i; opslag.set('dag', dag); tekenDag(); }));
   const kop = u => `${u.uur}:00–${u.uur + 1}:00`, kopT = u => `t/m ${u.uur + 1}:00`;
   const lab = i => { const u = cz.U[i]; return u && u.uur % 6 === 0 ? u.uur + 'u' : ''; };
   const cz = combo({box: 'g-zon', label: 'Zon per uur', U: [], balken: [{k: 'zon_vo', naam: 'verwacht oost', kleur: '--zon-o'}, {k: 'zon_vw', naam: 'verwacht west', kleur: '--zon-w'}],
-    lijn: {k: 'zon_w', naam: 'gemeten', kleur: '--zon-g'}, hoogte: 170, L: 34, labelI: lab, fmt: v => nl(v, 2) + ' kWh', tipKop: i => kop(cz.U[i])});
+    lijn: {k: 'zon_w', naam: 'gemeten', kleur: '--zon-g'}, lijn2: {k: 'zon_n', naam: 'nieuwste verwachting', kleur: '--verw'}, hoogte: 170, L: 34, labelI: lab, fmt: v => nl(v, 2) + ' kWh', tipKop: i => kop(cz.U[i])});
   const cn = combo({box: 'g-netto', label: 'Netto verbruik opgeteld', U: [], balken: [{k: 'cn_v', naam: 'verwacht', kleur: '--vb-v'}], lijn: {k: 'cn_w', naam: 'gemeten', kleur: '--vb-g'},
     band: {lo: 'cn_lo', hi: 'cn_hi', kleur: '--vb-g', naam: 'zonnig – somber'}, hoogte: 170, L: 34, labelI: lab, fmt: v => nl(v, 1) + ' kWh', tipKop: i => kopT(cn.U[i])});
   const ck = combo({box: 'g-kost', label: 'Kosten opgeteld', U: [], balken: [{k: 'ck_v', naam: 'verwacht', kleur: '--k-v'}], lijn: {k: 'ck_w', naam: 'gemeten', kleur: '--kw'},
@@ -469,10 +471,11 @@ function toonDagen(M) {
     else r = `<span><b>${f(tot(W, k))}</b>${V ? ` <span class="muted">/ ${f(tot(V, k))}${dag === 1 ? ' hele dag' : ''}</span>` : ''}</span>`;
     return `<div class="rij2"><div class="rij"><span>${naam}<small>${onder}</small></span>${r}</div>${del(dag === 2 || !W ? V : W)}</div>`;
   }
+  const nieuwZon = s => s.zon_n == null ? '' : `<div class="del" style="color:var(--verw)">nieuwste verwachting ${kw(s.zon_n)} kWh (opgehaald ${s.zon_n_t.slice(8, 10)}-${s.zon_n_t.slice(5, 7)} ${s.zon_n_t.slice(11, 16)})</div>`;
   function tekenDag() {
     $('seg').querySelectorAll('button').forEach(b => b.classList.toggle('akt', +b.dataset.i === dag));
     const s = X.dagen[dag], W = s.stroom_w;
-    $('dagcijfers').innerHTML = rij(s, 'Afname totaal', 'totaal', 'huis + batterij laden') + rij(s, 'Teruglevering', 'terug', 'aan het net') + rij(s, 'Zon', 'zon', 'productie')
+    $('dagcijfers').innerHTML = rij(s, 'Afname totaal', 'totaal', 'huis + batterij laden') + rij(s, 'Teruglevering', 'terug', 'aan het net') + rij(s, 'Zon', 'zon', 'productie') + nieuwZon(s)
       + rij(s, 'Netto', 'netto', 'afname − terug') + rij(s, 'Kosten', 'kosten', 'stroom incl. btw en EB')
       + `<div class="muted" style="margin-top:6px">${dag === 2 ? 'Verwachting van dagadvies' + (s.band ? ` · somber–zonnig: netto ${kw(s.band.netto[1])} – ${kw(s.band.netto[0])} kWh, kosten ${eur(s.band.kosten[1])} – ${eur(s.band.kosten[0])}` : '')
         : (dag === 1 && W ? `vet = gemeten t/m ${W.uren} uur · grijs = verwacht` : 'vet = gemeten · grijs = verwacht')}</div>`;
