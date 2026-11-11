@@ -498,31 +498,39 @@ function toonDagen(M) {
 function toonMaand(M) {
   const F = M.factuur, pad2 = m => String(m).padStart(2, '0');
   const lop = F.maanden.find(x => x.stand) || F.maanden.find(x => `${x.j1}-${pad2(x.m)}` === F.lopend);
-  const s = lop && lop.stand, v = lop && lop.verw;
+  const s = lop && lop.stand, v = lop && lop.verw, p = lop && lop.prog, doel = p || v;   // 11-11-2026: bijgestelde verwachting (prog)
   const [jj, mm] = F.lopend.split('-').map(Number), dim = new Date(jj, mm, 0).getDate();
   if (s) {
     let h = `<div class="l">Kosten ${lop.naam} t/m ${dat(s.tot_dag).slice(0, -5)}</div><div class="groot">${eur(s.totaal)}</div>`;
-    if (v) {
-      const pct = Math.max(0, Math.min(100, s.totaal / v.totaal * 100)), tijdp = s.dagen / dim * 100, op = pct <= tijdp + 5;
+    if (doel && doel.totaal > 0) {
+      const pct = Math.max(0, Math.min(100, s.totaal / doel.totaal * 100)), tijdp = s.dagen / dim * 100;
       h += `<div class="balk"><i style="width:${pct}%"></i><b style="left:${tijdp}%"></b></div>
-        <div class="x">${nl(pct, 0)}% van de verwachte factuur (${eur(v.totaal)}) na ${s.dagen} van ${dim} dagen · <span class="${op ? 'goed' : 'slecht'}">${op ? 'op koers' : 'boven verwachting'}</span></div>`;
-    } else h += `<div class="x">incl. vaste kosten naar rato · nog geen verwachting voor deze maand vastgelegd</div>`;
+        <div class="x">${nl(pct, 0)}% van de verwachte factuur (${eur(doel.totaal)}${p ? ', bijgesteld' : ''}) na ${s.dagen} van ${dim} dagen</div>`;
+    } else if (doel) h += `<div class="x">verwachte factuur ${eur(doel.totaal)}${p ? ' (bijgesteld)' : ''}</div>`;
+    else h += `<div class="x">incl. vaste kosten naar rato · nog geen verwachting voor deze maand</div>`;
     $('m-hero').innerHTML = h;
   } else $('m-hero').innerHTML = `<div class="l">Kosten deze maand</div><div class="x">Nog geen hele dag gemeten.</div>`;
   const VL = M.verbruik_lopend;
   let r = '';
-  if (v) r += `<div class="rij"><span>Verwacht ${lop.naam} ${lop.j1}</span><b>${eur(v.totaal)}</b></div>`;
+  if (p) r += `<div class="rij"><span>Verwacht ${lop.naam} ${lop.j1} (bijgesteld)${p.bandbreedte ? `<br><span class="muted">bandbreedte ${eur(p.bandbreedte[0], 0)} – ${nl(p.bandbreedte[1], 0)}</span>` : ''}</span><b>${eur(p.totaal)}</b></div>`;
+  if (v) r += `<div class="rij"><span>${p ? `Verwacht bij opstellen${v.opgesteld ? ' ' + dat(v.opgesteld).slice(0, -5) : ''}` : `Verwacht ${lop.naam} ${lop.j1}`}</span><b>${p ? `<span class="muted">${eur(v.totaal)}</span>` : eur(v.totaal)}</b></div>`;
   if (lop && lop.vorig) r += `<div class="rij"><span>${lop.naam} ${lop.j0} (factuur)</span><b>${eur(lop.vorig.totaal)}</b></div>`;
-  if (v && lop.vorig) r += `<div class="rij"><span>Verschil</span><b>${verschil(lop.vorig.totaal, v.totaal)}</b></div>`;
-  if (v && lop.vorig) r += `<div class="rij"><span>Netto afname hele maand</span><b>${nl(v.afname_kwh - v.terug_kwh, 0)} kWh <span class="muted">/ ${nl(lop.vorig.afname_kwh - lop.vorig.terug_kwh, 0)} vorig jaar</span></b></div>`;
+  if (doel && lop.vorig) r += `<div class="rij"><span>Verschil</span><b>${verschil(lop.vorig.totaal, doel.totaal)}</b></div>`;
+  if (doel && lop.vorig) r += `<div class="rij"><span>Netto afname hele maand${p ? ' (werkelijk + verwachting)' : ''}</span><b>${nl(doel.afname_kwh - doel.terug_kwh, 0)} kWh <span class="muted">/ ${nl(lop.vorig.afname_kwh - lop.vorig.terug_kwh, 0)} vorig jaar</span></b></div>`;
   if (VL && VL.vorig_zelfde) r += `<div class="rij"><span>Netto afname t/m ${dat(VL.huidig.tot_dag).slice(0, -5)}</span><b>${nl(VL.huidig.netto_kwh, 0)} kWh <span class="muted">/ ${nl(VL.vorig_zelfde.netto_kwh, 0)} vorig jaar</span></b></div>
     <div class="rij"><span>Marktprijs gemiddeld</span><b>${c1(VL.huidig.markt_ct)} <span class="muted">/ ${c1(VL.vorig_zelfde.markt_ct)}</span></b></div>`;
+  if (p) r += `<div class="muted">Bijgesteld = werkelijk t/m ${dat(p.werkelijk_tm.slice(0, 10)).slice(0, -5)} ${p.werkelijk_tm.slice(11, 16)} + verwachting rest van de maand (berekend ${dat(p.opgesteld.slice(0, 10)).slice(0, -5)} ${p.opgesteld.slice(11, 16)}).</div>`;
   $('m-vgl').innerHTML = r || '<div class="muted">Nog geen gegevens.</div>';
   const DK = M.maand_dagen || [];
-  const S = [{naam: 'werkelijk', kleur: '--s26', vals: DK.map(x => x.kosten_w)}, {naam: 'verwacht', kleur: '--verw', arcering: true, vals: DK.map(x => x.kosten_v)}];
-  $('leg-mk').innerHTML = S.map(s => `<span>${swatch(s)}${s.naam}</span>`).join('');
+  // 11-11-2026: vandaag = gemeten t/m het laatste hele uur + rest van de dag volgens het plan (lichte staaf)
+  const kw = x => x.vandaag ? (x.kosten_w == null && x.kosten_rest == null ? null : (x.kosten_w || 0) + (x.kosten_rest || 0)) : x.kosten_w;
+  const S = [{naam: 'werkelijk', kleur: '--s26', vals: DK.map(kw), licht: DK.map(x => !!x.vandaag)}, {naam: 'verwacht', kleur: '--verw', arcering: true, vals: DK.map(x => x.kosten_v)}];
+  $('leg-mk').innerHTML = S.map(s => `<span>${swatch(s)}${s.naam}</span>`).join('') + (DK.some(x => x.vandaag) ? '<span class="muted">lichte staaf = vandaag (gemeten + plan)</span>' : '');
   if (DK.length) staven({box: 'g-mk', label: 'Kosten per dag', cats: DK.map(x => String(x.dag)), series: S, hoogte: 160, fmtAs: v => '€ ' + nl(v, v % 1 ? 1 : 0),
-    tipHtml: i => { const x = DK[i]; return `<b>${x.wd} ${x.dag}</b>` + tipRij(S[0], eur(x.kosten_w)) + tipRij(S[1], eur(x.kosten_v)); }});
+    tipHtml: i => { const x = DK[i];
+      if (x.vandaag) return `<b>${x.wd} ${x.dag} · vandaag</b>` + tipRij(S[0], eur(kw(x))) +
+        `<div class="r muted"><span>gemeten${x.tm_uur ? ' t/m ' + x.tm_uur : ''}</span><span>${eur(x.kosten_w)}</span></div><div class="r muted"><span>rest volgens plan</span><span>${eur(x.kosten_rest)}</span></div>` + tipRij(S[1], eur(x.kosten_v));
+      return `<b>${x.wd} ${x.dag}</b>` + tipRij(S[0], eur(x.kosten_w)) + tipRij(S[1], eur(x.kosten_v)); }});
   const bm = M.batterij.maand;
   $('m-bat').innerHTML = bm ? `<div class="rij"><span>Batterij ${bm.naam.split(' ')[0]} t/m gisteren</span><b class="${bm.voordeel < 0 ? 'slecht' : 'goed'}">${eur(bm.voordeel)}</b></div>
     <div class="rij"><span>Rendement · cycli</span><b>${bm.rendement == null ? '–' : bm.rendement + '%'} · ${nl(bm.cycli, 1)}</b></div>
@@ -536,9 +544,16 @@ function toonJaar(M) {
   $('j-hero').innerHTML = F.vgl ? `<div class="l">Facturen ${F.vgl.van} t/m ${F.vgl.tm}</div><div class="groot">${eur(F.vgl.huidig)}</div>
     <div class="x">${F.vgl.huidig < 0 ? 'netto uitbetaald' : 'netto betaald'} · ${F.label_vorig}: ${eur(F.vgl.vorig)} → ${verschil(F.vgl.vorig, F.vgl.huidig)}</div>`
     : `<div class="l">Facturen jaar ${F.label}</div><div class="x">Vergelijking volgt na de eerste factuur van dit jaar.</div>`;
+  const JV = F.jaar_verw;      // 11-11-2026: verwacht hele contractjaar incl. EB-verrekening
+  if (JV) $('j-hero').innerHTML += `<div class="l" style="margin-top:14px">Verwacht hele jaar (t/m ${JV.eind})</div><div class="groot">${eur(JV.totaal)}</div>
+    <div class="x">bandbreedte ${eur(JV.laag, 0)} – ${nl(JV.hoog, 0)}${JV.vorig ? ` · ${F.label_vorig}: ${eur(JV.vorig.totaal)} → ${verschil(JV.vorig.totaal, JV.totaal)}` : ''}</div>
+    <div class="rij"><span>Facturen ${JV.n_facturen ? 'feb t/m ' + JV.facturen_tm : ''}</span><b>${eur(JV.facturen)}</b></div>
+    <div class="rij"><span>Verwacht ${JV.prognose_maanden.join(', ')}</span><b>${eur(JV.prognose)}</b></div>
+    <div class="rij"><span>EB-verrekening (saldering)</span><b>${eur(JV.eb)}</b></div>
+    <div class="muted">Werkelijk t/m ${dat(JV.werkelijk_tm.slice(0, 10)).slice(0, -5)} ${JV.werkelijk_tm.slice(11, 16)}, daarna verwachting${JV.prijsniveau && JV.prijsniveau.factor !== 1 ? `; na de bekende prijzen: marktprijs vorig jaar × ${nl(JV.prijsniveau.factor, 2)} (niveau laatste 4 weken: ${nl(JV.prijsniveau.nu_ct, 1)} t.o.v. ${nl(JV.prijsniveau.vorig_jaar_ct, 1)} ct)` : ''}.${JV.vorig ? ` ${F.label_vorig} incl. EB-verrekening ${eur(JV.vorig.eb)}.` : ''}</div>`;
   const MM = F.maanden, S = [{naam: F.label_vorig, kleur: '--s25', vals: MM.map(x => x.vorig ? x.vorig.totaal : null)},
     {naam: F.label, kleur: '--s26', vals: MM.map(x => x.huidig ? x.huidig.totaal : null)},
-    {naam: 'verwacht', kleur: '--verw', arcering: true, vals: MM.map(x => x.verw ? x.verw.totaal : null)}];
+    {naam: 'verwacht', kleur: '--verw', arcering: true, vals: MM.map(x => x.huidig ? null : x.prog ? x.prog.totaal : x.verw ? x.verw.totaal : null)}];
   $('leg-jf').innerHTML = S.map(s => `<span>${swatch(s)}${s.naam}</span>`).join('');
   staven({box: 'g-jf', label: 'Factuur per maand', cats: MM.map(x => x.naam[0]), series: S, hoogte: 190, stap: 50, fmtAs: v => (v < 0 ? '−' : '') + Math.abs(v),
     tipHtml: i => { const x = MM[i]; let h = `<b>${x.naam}</b>`; S.forEach(s => { if (s.vals[i] != null) h += tipRij(s, eur(s.vals[i])); }); return h; }});
