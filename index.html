@@ -261,8 +261,10 @@ function staven(cfg){
     cfg.cats.forEach((c,i)=>{
       const cx=L+gw*i+gw/2;
       if(i===gek)el('rect',{x:L+gw*i+1,y:TP,width:gw-2,height:H-TP-B,fill:css('--hover'),rx:6},svg);
-      cfg.series.forEach((s,j)=>{const v=s.vals[i];if(v==null)return;
-        const x0=cx+(j-(ns-1)/2)*(bw+2)-bw/2,y0=y(0),y1=y(v),h=Math.abs(y1-y0),r=Math.min(4,h,bw/2),o=v>=0?r:-r;
+      // compact (11-11-2026): alleen de series met een waarde, gecentreerd
+      const act=cfg.compact?cfg.series.filter(s=>s.vals[i]!=null):cfg.series,na=act.length;
+      cfg.series.forEach((s,j)=>{const v=s.vals[i];if(v==null)return;const jj=cfg.compact?act.indexOf(s):j,nn=cfg.compact?na:ns;
+        const x0=cx+(jj-(nn-1)/2)*(bw+2)-bw/2,y0=y(0),y1=y(v),h=Math.abs(y1-y0),r=Math.min(4,h,bw/2),o=v>=0?r:-r;
         const d=`M${x0},${y0}V${y1+o}Q${x0},${y1} ${x0+r},${y1}H${x0+bw-r}Q${x0+bw},${y1} ${x0+bw},${y1+o}V${y0}Z`;
         const licht=s.licht&&s.licht[i];
         el('path',{d,fill:s.arcering?`url(#${cfg.box}-arc)`:css(s.kleur),'fill-opacity':licht?0.35:1,
@@ -551,11 +553,14 @@ function toonJaar(M) {
     <div class="rij"><span>Verwacht ${JV.prognose_maanden.join(', ')}</span><b>${eur(JV.prognose)}</b></div>
     <div class="rij"><span>EB-verrekening (saldering)</span><b>${eur(JV.eb)}</b></div>
     <div class="muted">Werkelijk t/m ${dat(JV.werkelijk_tm.slice(0, 10)).slice(0, -5)} ${JV.werkelijk_tm.slice(11, 16)}, daarna verwachting${JV.prijsniveau && JV.prijsniveau.factor !== 1 ? `; na de bekende prijzen: marktprijs vorig jaar × ${nl(JV.prijsniveau.factor, 2)} (niveau laatste 4 weken: ${nl(JV.prijsniveau.nu_ct, 1)} t.o.v. ${nl(JV.prijsniveau.vorig_jaar_ct, 1)} ct)` : ''}.${JV.vorig ? ` ${F.label_vorig} incl. EB-verrekening ${eur(JV.vorig.eb)}.` : ''}</div>`;
+  // 11-11-2026: afgesloten maand = werkelijk (factuur, of Tibber zolang de factuur er nog niet is); lopend/komend = verwachting
+  const afg = x => `${x.j1}-${String(x.m).padStart(2, '0')}` < F.lopend;
+  const werk = x => x.huidig ? x.huidig.totaal : (afg(x) && x.prog ? x.prog.totaal : null);
   const MM = F.maanden, S = [{naam: F.label_vorig, kleur: '--s25', vals: MM.map(x => x.vorig ? x.vorig.totaal : null)},
-    {naam: F.label, kleur: '--s26', vals: MM.map(x => x.huidig ? x.huidig.totaal : null)},
-    {naam: 'verwacht', kleur: '--verw', arcering: true, vals: MM.map(x => x.huidig ? null : x.prog ? x.prog.totaal : x.verw ? x.verw.totaal : null)}];
+    {naam: F.label, kleur: '--s26', vals: MM.map(werk)},
+    {naam: 'verwacht', kleur: '--verw', arcering: true, vals: MM.map(x => werk(x) != null ? null : x.prog ? x.prog.totaal : x.verw ? x.verw.totaal : null)}];
   $('leg-jf').innerHTML = S.map(s => `<span>${swatch(s)}${s.naam}</span>`).join('');
-  staven({box: 'g-jf', label: 'Factuur per maand', cats: MM.map(x => x.naam[0]), series: S, hoogte: 190, stap: 50, fmtAs: v => (v < 0 ? '−' : '') + Math.abs(v),
+  staven({box: 'g-jf', label: 'Factuur per maand', cats: MM.map(x => x.naam[0]), series: S, hoogte: 190, stap: 50, compact: true, fmtAs: v => (v < 0 ? '−' : '') + Math.abs(v),
     tipHtml: i => { const x = MM[i]; let h = `<b>${x.naam}</b>`; S.forEach(s => { if (s.vals[i] != null) h += tipRij(s, eur(s.vals[i])); }); return h; }});
   $('j-saldo').innerHTML = `<div class="rij"><span>Saldo nu (netto terug)</span><b>${nl(E.lopend ? E.lopend.saldo_nu : E.saldo_kwh, 0)} kWh</b></div>
     <div class="rij"><span>Verwacht eind periode</span><b>${nl(E.prognose_kwh, 0)} kWh</b></div>
